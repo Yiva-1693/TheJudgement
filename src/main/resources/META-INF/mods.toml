@@ -1,0 +1,31 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="All rights reserved"
+
+[[mods]]
+modId="thejudgement"
+version="1.0.0"
+displayName="The Judgement"
+logoFile="thejudgement_logo.png"
+credits="Created by Yiva"
+authors="Yiva"
+description='''
+Adds the powerful "Judgement Staff" – a magical weapon with two firing modes:
+- Bombardment (left-click): Call down a stationary divine beam after aiming with a dynamic targeting sphere.
+- Sweep (right-click): Guide a moving laser beam across the battlefield.
+Features frame-based damage, visual effects, and cooldown mechanics.
+'''
+
+[[dependencies.thejudgement]]
+modId="forge"
+mandatory=true
+versionRange="[47,)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.thejudgement]]
+modId="minecraft"
+mandatory=true
+versionRange="[1.20.1,1.20.2)"
+ordering="NONE"
+side="BOTH"

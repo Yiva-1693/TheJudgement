@@ -1,0 +1,334 @@
+package com.yiva.thejudgement.client.renderer;
+
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.yiva.thejudgement.Config;
+import com.yiva.thejudgement.client.handler.InputHandler;
+import com.yiva.thejudgement.entity.BeamEntity;
+import net.minecraft.client.renderer.LightTexture;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.entity.EntityRenderer;
+import net.minecraft.client.renderer.entity.EntityRendererProvider;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.phys.Vec3;
+import org.joml.Matrix4f;
+
+public class BeamRenderer extends EntityRenderer<BeamEntity> {
+
+    private static final ResourceLocation WHITE_BEAM_TEXTURE =
+            new ResourceLocation("thejudgement", "textures/entity/white_beam.png");
+
+    private static final ResourceLocation BEAM_TEXTURE =
+            new ResourceLocation("thejudgement", "textures/entity/abyss_laser_beam_single.png");
+
+    private static final ResourceLocation[] RIFT_GROW = {
+            new ResourceLocation("thejudgement", "textures/entity/rift/dimensional_rift_grow_0.png"),
+            new ResourceLocation("thejudgement", "textures/entity/rift/dimensional_rift_grow_1.png"),
+            new ResourceLocation("thejudgement", "textures/entity/rift/dimensional_rift_grow_2.png"),
+            new ResourceLocation("thejudgement", "textures/entity/rift/dimensional_rift_grow_3.png")
+    };
+    private static final ResourceLocation[] RIFT_IDLE = {
+            new ResourceLocation("thejudgement", "textures/entity/rift/dimensional_rift_idle1.png"),
+            new ResourceLocation("thejudgement", "textures/entity/rift/dimensional_rift_idle2.png"),
+            new ResourceLocation("thejudgement", "textures/entity/rift/dimensional_rift_idle3.png"),
+            new ResourceLocation("thejudgement", "textures/entity/rift/dimensional_rift_idle4.png")
+    };
+    private static final ResourceLocation[] PORTAL_GROW = {
+            new ResourceLocation("thejudgement", "textures/entity/portal/abyss_portal_grow_0.png"),
+            new ResourceLocation("thejudgement", "textures/entity/portal/abyss_portal_grow_1.png"),
+            new ResourceLocation("thejudgement", "textures/entity/portal/abyss_portal_grow_2.png"),
+            new ResourceLocation("thejudgement", "textures/entity/portal/abyss_portal_grow_3.png"),
+            new ResourceLocation("thejudgement", "textures/entity/portal/abyss_portal_grow_4.png"),
+            new ResourceLocation("thejudgement", "textures/entity/portal/abyss_portal_grow_5.png"),
+            new ResourceLocation("thejudgement", "textures/entity/portal/abyss_portal_grow_6.png"),
+            new ResourceLocation("thejudgement", "textures/entity/portal/abyss_portal_grow_7.png")
+    };
+    private static final ResourceLocation[] PORTAL_IDLE = {
+            new ResourceLocation("thejudgement", "textures/entity/portal/abyss_portal_idle_0.png"),
+            new ResourceLocation("thejudgement", "textures/entity/portal/abyss_portal_idle_1.png"),
+            new ResourceLocation("thejudgement", "textures/entity/portal/abyss_portal_idle_2.png"),
+            new ResourceLocation("thejudgement", "textures/entity/portal/abyss_portal_idle_3.png")
+    };
+    private static final ResourceLocation AIM_MARKER_TEXTURE =
+            new ResourceLocation("thejudgement", "textures/entity/aim_marker.png");
+
+    private static final float RIFT_RADIUS = 15.0f;
+    private static final float PORTAL_RADIUS = 8.0f;
+    private static final float AIM_MARKER_RADIUS = 3f;
+    private static final int SEGMENTS = 32;
+
+    private static final int RIFT_GROW_INTERVAL = 12;
+    private static final int RIFT_IDLE_INTERVAL = 3;
+    private static final int PORTAL_IDLE_INTERVAL = 3;
+
+    private BeamEntity.Phase lastPhase = null;
+
+    public BeamRenderer(EntityRendererProvider.Context context) {
+        super(context);
+    }
+
+    @Override
+    public ResourceLocation getTextureLocation(BeamEntity entity) {
+        return BEAM_TEXTURE;
+    }
+
+    @Override
+    public void render(BeamEntity entity, float entityYaw, float partialTicks, PoseStack poseStack,
+                       MultiBufferSource buffer, int packedLight) {
+        Vec3 center = entity.position();
+        double radius = entity.getCurrentRadius();
+        double height = Config.getBeamHeight();
+
+        // 检测阶段变化以停止蓄力音效
+        BeamEntity.Phase currentPhase = entity.getPhase();
+        boolean wasCharging = (lastPhase == BeamEntity.Phase.CHARGING || lastPhase == BeamEntity.Phase.CHARGED_WAIT);
+        boolean isCharging = (currentPhase == BeamEntity.Phase.CHARGING || currentPhase == BeamEntity.Phase.CHARGED_WAIT);
+        if (wasCharging && !isCharging) {
+            InputHandler.stopChargeSound();
+        }
+        lastPhase = currentPhase;
+
+        int fullBright = LightTexture.FULL_BRIGHT;
+
+        switch (currentPhase) {
+            case CHARGING, CHARGED_WAIT:
+                renderRiftGrow(entity, center, partialTicks, poseStack, buffer, fullBright);
+                renderAimMarker(entity, center, partialTicks, poseStack, buffer, fullBright);
+                break;
+            case FIRING:
+                if (radius > 0.01) {
+                    renderBeam(entity, center, radius, height, poseStack, buffer, fullBright);
+                }
+                renderRiftIdle(entity, center, partialTicks, poseStack, buffer, fullBright);
+                renderPortalIdle(entity, center, partialTicks, poseStack, buffer, fullBright);
+                break;
+            case DISSIPATING:
+                if (radius > 0.01) {
+                    renderBeam(entity, center, radius, height, poseStack, buffer, fullBright);
+                }
+                renderRiftReverseGrow(entity, center, partialTicks, poseStack, buffer, fullBright);
+                renderPortalReverseGrow(entity, center, partialTicks, poseStack, buffer, fullBright);
+                break;
+        }
+
+        super.render(entity, entityYaw, partialTicks, poseStack, buffer, packedLight);
+    }
+
+    private void renderBeam(BeamEntity entity, Vec3 center, double radius, double height,
+                            PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
+        poseStack.pushPose();
+        poseStack.translate(center.x - entity.getX(), center.y - entity.getY(), center.z - entity.getZ());
+
+        RenderSystem.depthMask(false);
+        RenderType renderType = RenderType.entityTranslucent(BEAM_TEXTURE);
+        VertexConsumer consumer = buffer.getBuffer(renderType);
+        Matrix4f pose = poseStack.last().pose();
+
+        float bottomY = -(float) Config.getBeamHeight();
+        float topY = (float) Config.getBeamHeight();
+        float angleStep = (float) (2 * Math.PI / SEGMENTS);
+
+        for (int i = 0; i < SEGMENTS; i++) {
+            float angle1 = i * angleStep;
+            float angle2 = (i + 1) * angleStep;
+            float cos1 = (float) Math.cos(angle1);
+            float sin1 = (float) Math.sin(angle1);
+            float cos2 = (float) Math.cos(angle2);
+            float sin2 = (float) Math.sin(angle2);
+            float x1 = (float) (radius * cos1);
+            float z1 = (float) (radius * sin1);
+            float x2 = (float) (radius * cos2);
+            float z2 = (float) (radius * sin2);
+
+            float u1 = (float) i / SEGMENTS;
+            float u2 = (float) (i + 1) / SEGMENTS;
+            float outAlpha = 0.2f;
+
+            consumer.vertex(pose, x1, bottomY, z1)
+                  .color(0.5f, 0.9f, 1f, outAlpha)
+                    .uv(u1, 1)
+                    .overlayCoords(0, 0)
+                    .uv2(packedLight)
+                    .normal(cos1, 0, sin1)
+                    .endVertex();
+            consumer.vertex(pose, x2, bottomY, z2)
+                  .color(0.5f, 0.9f, 1f, outAlpha)
+                    .uv(u2, 1)
+                    .overlayCoords(0, 0)
+                    .uv2(packedLight)
+                    .normal(cos2, 0, sin2)
+                    .endVertex();
+            consumer.vertex(pose, x2, topY, z2)
+                  .color(0.5f, 0.9f, 1f, outAlpha)
+                    .uv(u2, 0)
+                    .overlayCoords(0, 0)
+                    .uv2(packedLight)
+                    .normal(cos2, 0, sin2)
+                    .endVertex();
+            consumer.vertex(pose, x1, topY, z1)
+                  .color(0.5f, 0.9f, 1f, outAlpha)
+                    .uv(u1, 0)
+                    .overlayCoords(0, 0)
+                    .uv2(packedLight)
+                    .normal(cos1, 0, sin1)
+                    .endVertex();
+        }
+
+        RenderType whiteRenderType = RenderType.entityTranslucent(WHITE_BEAM_TEXTURE);
+        VertexConsumer whiteConsumer = buffer.getBuffer(whiteRenderType);
+        Matrix4f whitePose = poseStack.last().pose();
+
+        double innerRadius = radius * 0.7; // 内部半径为外部的一半
+        float innerAlpha = 0.85f;          // 更不透明
+
+        for (int i = 0; i < SEGMENTS; i++) {
+            float angle1 = i * angleStep;
+            float angle2 = (i + 1) * angleStep;
+            float cos1 = (float) Math.cos(angle1);
+            float sin1 = (float) Math.sin(angle1);
+            float cos2 = (float) Math.cos(angle2);
+            float sin2 = (float) Math.sin(angle2);
+            float x1 = (float) (innerRadius * cos1);
+            float z1 = (float) (innerRadius * sin1);
+            float x2 = (float) (innerRadius * cos2);
+            float z2 = (float) (innerRadius * sin2);
+
+            float u1 = (float) i / SEGMENTS;
+            float u2 = (float) (i + 1) / SEGMENTS;
+
+            whiteConsumer.vertex(whitePose, x1, bottomY, z1)
+                  .color(0.5f, 0.9f, 1f, innerAlpha)
+                    .uv(u1, 1)
+                    .overlayCoords(0, 0)
+                    .uv2(packedLight)
+                    .normal(cos1, 0, sin1)
+                    .endVertex();
+            whiteConsumer.vertex(whitePose, x2, bottomY, z2)
+                  .color(0.5f, 0.9f, 1f, innerAlpha)
+                    .uv(u2, 1)
+                    .overlayCoords(0, 0)
+                    .uv2(packedLight)
+                    .normal(cos2, 0, sin2)
+                    .endVertex();
+            whiteConsumer.vertex(whitePose, x2, topY, z2)
+                  .color(0.5f, 0.9f, 1f, innerAlpha)
+                    .uv(u2, 0)
+                    .overlayCoords(0, 0)
+                    .uv2(packedLight)
+                    .normal(cos2, 0, sin2)
+                    .endVertex();
+            whiteConsumer.vertex(whitePose, x1, topY, z1)
+                  .color(0.5f, 0.9f, 1f, innerAlpha)
+                    .uv(u1, 0)
+                    .overlayCoords(0, 0)
+                    .uv2(packedLight)
+                    .normal(cos1, 0, sin1)
+                    .endVertex();
+        }
+        RenderSystem.depthMask(true);
+        poseStack.popPose();
+    }
+
+    private void renderRiftGrow(BeamEntity entity, Vec3 center, float partialTicks,
+                                PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
+        int totalTicks = entity.getTotalLifeTicks();
+        int idx = Math.min(totalTicks / RIFT_GROW_INTERVAL, 3);
+        ResourceLocation tex = RIFT_GROW[idx];
+        renderHorizontalQuad(poseStack, buffer, entity, center, 40.0, RIFT_RADIUS, tex, packedLight, 1.0f, false);    }
+
+    private void renderRiftIdle(BeamEntity entity, Vec3 center, float partialTicks,
+                                PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
+        int totalTicks = entity.getTotalLifeTicks();
+        int idx = (totalTicks / RIFT_IDLE_INTERVAL) % 4;
+        ResourceLocation tex = RIFT_IDLE[idx];
+        renderHorizontalQuad(poseStack, buffer, entity, center, 40.0, RIFT_RADIUS, tex, packedLight, 1.0f, false);
+    }
+
+    private void renderRiftReverseGrow(BeamEntity entity, Vec3 center, float partialTicks,
+                                       PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
+        int phaseTicks = entity.getPhaseTimer();
+        int totalFrames = RIFT_GROW.length;
+        int duration = (int) (Config.getDissipateTime() * 20);
+        int progress = Math.min(phaseTicks, duration);
+        int idx = totalFrames - 1 - (progress * totalFrames / duration);
+        idx = Math.max(0, Math.min(totalFrames - 1, idx));
+        ResourceLocation tex = RIFT_GROW[idx];
+        renderHorizontalQuad(poseStack, buffer, entity, center, 40.0, RIFT_RADIUS, tex, packedLight, 1.0f, false);    }
+
+    private void renderPortalIdle(BeamEntity entity, Vec3 center, float partialTicks,
+                                  PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
+        int phaseTicks = entity.getPhaseTimer();
+        int idx = (phaseTicks / PORTAL_IDLE_INTERVAL) % 4;
+        ResourceLocation tex = PORTAL_IDLE[idx];
+        renderHorizontalQuad(poseStack, buffer, entity, center, 40.0, PORTAL_RADIUS, tex, packedLight, 1.0f, true);    }
+
+    private void renderPortalReverseGrow(BeamEntity entity, Vec3 center, float partialTicks,
+                                         PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
+        int phaseTicks = entity.getPhaseTimer();
+        int totalFrames = PORTAL_GROW.length;
+        int duration = (int) (Config.getDissipateTime() * 20);
+        int progress = Math.min(phaseTicks, duration);
+        int idx = totalFrames - 1 - (progress * totalFrames / duration);
+        idx = Math.max(0, Math.min(totalFrames - 1, idx));
+        ResourceLocation tex = PORTAL_GROW[idx];
+        renderHorizontalQuad(poseStack, buffer, entity, center, 40.0, PORTAL_RADIUS, tex, packedLight, 1.0f, true);    }
+
+    private void renderAimMarker(BeamEntity entity, Vec3 center, float partialTicks,
+                                 PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
+        renderHorizontalQuad(poseStack, buffer, entity, center, 0, AIM_MARKER_RADIUS,
+                AIM_MARKER_TEXTURE, packedLight, 0.5f, false);
+    }
+
+    private void renderHorizontalQuad(PoseStack poseStack, MultiBufferSource buffer,
+                                      BeamEntity entity, Vec3 center, double yOffset, float size,
+                                      ResourceLocation texture, int packedLight, float alpha, boolean spin) {
+        if (center == null || texture == null) return;
+
+        poseStack.pushPose();
+        poseStack.translate(center.x - entity.getX(), center.y - entity.getY() + yOffset, center.z - entity.getZ());
+
+        // 只有 spin 为 true 时才旋转
+        if (spin) {
+            float rot = (entity.getTotalLifeTicks() * 1.5f) % 360;
+            poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(rot));
+        }
+
+        RenderType renderType = RenderType.entityTranslucent(texture);
+        VertexConsumer consumer = buffer.getBuffer(renderType);
+        Matrix4f pose = poseStack.last().pose();
+        float half = size;
+
+        consumer.vertex(pose, -half, 0, -half)
+                .color(1f, 1f, 1f, alpha)
+                .uv(0, 0)
+                .overlayCoords(0, 0)
+                .uv2(packedLight)
+                .normal(0, 1, 0)
+                .endVertex();
+        consumer.vertex(pose, half, 0, -half)
+                .color(1f, 1f, 1f, alpha)
+                .uv(1, 0)
+                .overlayCoords(0, 0)
+                .uv2(packedLight)
+                .normal(0, 1, 0)
+                .endVertex();
+        consumer.vertex(pose, half, 0, half)
+                .color(1f, 1f, 1f, alpha)
+                .uv(1, 1)
+                .overlayCoords(0, 0)
+                .uv2(packedLight)
+                .normal(0, 1, 0)
+                .endVertex();
+        consumer.vertex(pose, -half, 0, half)
+                .color(1f, 1f, 1f, alpha)
+                .uv(0, 1)
+                .overlayCoords(0, 0)
+                .uv2(packedLight)
+                .normal(0, 1, 0)
+                .endVertex();
+
+        poseStack.popPose();
+    }
+}

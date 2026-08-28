@@ -1,0 +1,21 @@
+{
+  "beam_charge": {
+    "subtitle": "sound.thejudgement.beam_charge",
+    "sounds": [
+      {
+        "name": "thejudgement:beam/abyss_blast_charge",
+        "stream": true
+      }
+    ]
+  },
+  "beam_shot": {
+    "subtitle": "sound.thejudgement.beam_shot",
+    "sounds": [
+      {
+        "name": "thejudgement:beam/abyss_blast_shot",
+        "stream": true
+      }
+    ],
+    "attenuation_distance": 100
+  }
+}

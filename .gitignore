@@ -1,0 +1,22 @@
+# Gradle
+.gradle/
+build/
+gradle-app.setting
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+run/
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+
+# OS
+.DS_Store
+Thumbs.db
