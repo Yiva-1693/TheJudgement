@@ -4,13 +4,13 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.yiva.thejudgement.Config;
-import com.yiva.thejudgement.client.handler.InputHandler;
 import com.yiva.thejudgement.entity.BeamEntity;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
+import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
@@ -63,8 +63,6 @@ public class BeamRenderer extends EntityRenderer<BeamEntity> {
     private static final int RIFT_IDLE_INTERVAL = 3;
     private static final int PORTAL_IDLE_INTERVAL = 3;
 
-    private BeamEntity.Phase lastPhase = null;
-
     public BeamRenderer(EntityRendererProvider.Context context) {
         super(context);
     }
@@ -81,14 +79,7 @@ public class BeamRenderer extends EntityRenderer<BeamEntity> {
         double radius = entity.getCurrentRadius();
         double height = Config.getBeamHeight();
 
-        // 检测阶段变化以停止蓄力音效
         BeamEntity.Phase currentPhase = entity.getPhase();
-        boolean wasCharging = (lastPhase == BeamEntity.Phase.CHARGING || lastPhase == BeamEntity.Phase.CHARGED_WAIT);
-        boolean isCharging = (currentPhase == BeamEntity.Phase.CHARGING || currentPhase == BeamEntity.Phase.CHARGED_WAIT);
-        if (wasCharging && !isCharging) {
-            InputHandler.stopChargeSound();
-        }
-        lastPhase = currentPhase;
 
         int fullBright = LightTexture.FULL_BRIGHT;
 
@@ -149,28 +140,28 @@ public class BeamRenderer extends EntityRenderer<BeamEntity> {
             consumer.vertex(pose, x1, bottomY, z1)
                   .color(0.5f, 0.9f, 1f, outAlpha)
                     .uv(u1, 1)
-                    .overlayCoords(0, 0)
+                    .overlayCoords(OverlayTexture.NO_OVERLAY)
                     .uv2(packedLight)
                     .normal(cos1, 0, sin1)
                     .endVertex();
             consumer.vertex(pose, x2, bottomY, z2)
                   .color(0.5f, 0.9f, 1f, outAlpha)
                     .uv(u2, 1)
-                    .overlayCoords(0, 0)
+                    .overlayCoords(OverlayTexture.NO_OVERLAY)
                     .uv2(packedLight)
                     .normal(cos2, 0, sin2)
                     .endVertex();
             consumer.vertex(pose, x2, topY, z2)
                   .color(0.5f, 0.9f, 1f, outAlpha)
                     .uv(u2, 0)
-                    .overlayCoords(0, 0)
+                    .overlayCoords(OverlayTexture.NO_OVERLAY)
                     .uv2(packedLight)
                     .normal(cos2, 0, sin2)
                     .endVertex();
             consumer.vertex(pose, x1, topY, z1)
                   .color(0.5f, 0.9f, 1f, outAlpha)
                     .uv(u1, 0)
-                    .overlayCoords(0, 0)
+                    .overlayCoords(OverlayTexture.NO_OVERLAY)
                     .uv2(packedLight)
                     .normal(cos1, 0, sin1)
                     .endVertex();
@@ -201,28 +192,28 @@ public class BeamRenderer extends EntityRenderer<BeamEntity> {
             whiteConsumer.vertex(whitePose, x1, bottomY, z1)
                   .color(0.5f, 0.9f, 1f, innerAlpha)
                     .uv(u1, 1)
-                    .overlayCoords(0, 0)
+                    .overlayCoords(OverlayTexture.NO_OVERLAY)
                     .uv2(packedLight)
                     .normal(cos1, 0, sin1)
                     .endVertex();
             whiteConsumer.vertex(whitePose, x2, bottomY, z2)
                   .color(0.5f, 0.9f, 1f, innerAlpha)
                     .uv(u2, 1)
-                    .overlayCoords(0, 0)
+                    .overlayCoords(OverlayTexture.NO_OVERLAY)
                     .uv2(packedLight)
                     .normal(cos2, 0, sin2)
                     .endVertex();
             whiteConsumer.vertex(whitePose, x2, topY, z2)
                   .color(0.5f, 0.9f, 1f, innerAlpha)
                     .uv(u2, 0)
-                    .overlayCoords(0, 0)
+                    .overlayCoords(OverlayTexture.NO_OVERLAY)
                     .uv2(packedLight)
                     .normal(cos2, 0, sin2)
                     .endVertex();
             whiteConsumer.vertex(whitePose, x1, topY, z1)
                   .color(0.5f, 0.9f, 1f, innerAlpha)
                     .uv(u1, 0)
-                    .overlayCoords(0, 0)
+                    .overlayCoords(OverlayTexture.NO_OVERLAY)
                     .uv2(packedLight)
                     .normal(cos1, 0, sin1)
                     .endVertex();
@@ -303,28 +294,28 @@ public class BeamRenderer extends EntityRenderer<BeamEntity> {
         consumer.vertex(pose, -half, 0, -half)
                 .color(1f, 1f, 1f, alpha)
                 .uv(0, 0)
-                .overlayCoords(0, 0)
+                .overlayCoords(OverlayTexture.NO_OVERLAY)
                 .uv2(packedLight)
                 .normal(0, 1, 0)
                 .endVertex();
         consumer.vertex(pose, half, 0, -half)
                 .color(1f, 1f, 1f, alpha)
                 .uv(1, 0)
-                .overlayCoords(0, 0)
+                .overlayCoords(OverlayTexture.NO_OVERLAY)
                 .uv2(packedLight)
                 .normal(0, 1, 0)
                 .endVertex();
         consumer.vertex(pose, half, 0, half)
                 .color(1f, 1f, 1f, alpha)
                 .uv(1, 1)
-                .overlayCoords(0, 0)
+                .overlayCoords(OverlayTexture.NO_OVERLAY)
                 .uv2(packedLight)
                 .normal(0, 1, 0)
                 .endVertex();
         consumer.vertex(pose, -half, 0, half)
                 .color(1f, 1f, 1f, alpha)
                 .uv(0, 1)
-                .overlayCoords(0, 0)
+                .overlayCoords(OverlayTexture.NO_OVERLAY)
                 .uv2(packedLight)
                 .normal(0, 1, 0)
                 .endVertex();

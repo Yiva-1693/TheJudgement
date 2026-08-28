@@ -6,12 +6,9 @@ import com.yiva.thejudgement.entity.BeamEntity;
 import com.yiva.thejudgement.item.JudgementStaffItem;
 import com.yiva.thejudgement.network.ModMessages;
 import com.yiva.thejudgement.network.packet.BeamControlC2SPacket;
-import com.yiva.thejudgement.sound.ModSounds;
 import com.yiva.thejudgement.util.BeamMathHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.resources.sounds.SimpleSoundInstance;
-import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
@@ -29,27 +26,6 @@ public class InputHandler {
     private static double rightPressY = 0;
     private static boolean leftCharging = false;
     private static boolean rightCharging = false;
-
-    private static SimpleSoundInstance currentChargeSound = null;
-
-    // ---------- 音效管理 ----------
-    private static SoundManager getSoundManager() {
-        return Minecraft.getInstance().getSoundManager();
-    }
-
-    public static void playChargeSound() {
-        // 停止旧的蓄力音效，确保不会重叠
-        stopChargeSound();
-        currentChargeSound = SimpleSoundInstance.forUI(ModSounds.BEAM_CHARGE.get(), 1.0f, 1.0f);
-        getSoundManager().play(currentChargeSound);
-    }
-
-    public static void stopChargeSound() {
-        if (currentChargeSound != null) {
-            getSoundManager().stop(currentChargeSound);
-            currentChargeSound = null;
-        }
-    }
 
     // ---------- 鼠标事件 ----------
     @SubscribeEvent
@@ -76,7 +52,6 @@ public class InputHandler {
 
                 leftPressTime = System.currentTimeMillis();
                 leftCharging = true;
-                playChargeSound(); // 按下时播放
 
                 Vec3 eyePos = player.getEyePosition(1.0f);
                 ModMessages.sendToServer(BeamControlC2SPacket.startCharge(BeamEntity.Mode.BOMB, eyePos, null, player.getUUID()));
@@ -104,7 +79,6 @@ public class InputHandler {
                 rightPressTime = System.currentTimeMillis();
                 rightPressY = player.position().y;
                 rightCharging = true;
-                playChargeSound(); // 按下时播放
 
                 Vec3 core = new Vec3(player.position().x, rightPressY, player.position().z);
                 Vec3 horizontalDir = BeamMathHelper.getHorizontalDirection(player.getLookAngle());
