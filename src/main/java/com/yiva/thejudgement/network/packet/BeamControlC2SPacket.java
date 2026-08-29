@@ -1,11 +1,17 @@
 package com.yiva.thejudgement.network.packet;
 
+import com.yiva.thejudgement.Config;
 import com.yiva.thejudgement.TheJudgement;
 import com.yiva.thejudgement.entity.BeamEntity;
 import com.yiva.thejudgement.entity.ModEntities;
+import com.yiva.thejudgement.item.JudgementStaffItem;
+import com.yiva.thejudgement.util.BeamMathHelper;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.network.NetworkEvent;
 
@@ -114,6 +120,27 @@ public class BeamControlC2SPacket {
 
             switch (action) {
                 case START_CHARGE -> {
+                    var mainHand = player.getMainHandItem();
+                    if (!(mainHand.getItem() instanceof JudgementStaffItem)
+                            || player.getCooldowns().isOnCooldown(mainHand.getItem())) {
+                        return;
+                    }
+
+                    Vec3 startCenter;
+                    Vec3 fixedTarget = null;
+                    if (mode == BeamEntity.Mode.BOMB) {
+                        startCenter = player.getEyePosition(1.0F);
+                    } else if (mode == BeamEntity.Mode.SWEEP) {
+                        startCenter = player.position();
+                        Vec3 horizontalDir = BeamMathHelper.getHorizontalDirection(player.getLookAngle());
+                        fixedTarget = startCenter.add(horizontalDir.scale(Config.getSweepCircleRadius()));
+                    } else {
+                        HitResult hitResult = player.pick(Config.getDirectBombMaxRange(), 1.0F, false);
+                        if (!(hitResult instanceof BlockHitResult blockHit)) return;
+                        BlockPos blockPos = blockHit.getBlockPos();
+                        startCenter = new Vec3(blockPos.getX() + 0.5, blockPos.getY() - 1.0, blockPos.getZ() + 0.5);
+                    }
+
                     BeamEntity oldBeam = BeamEntity.CHARGING_BEAMS.remove(playerUUID);
                     if (oldBeam != null && !oldBeam.isRemoved()) {
                         oldBeam.discard();
@@ -125,13 +152,10 @@ public class BeamControlC2SPacket {
                     beam.setPhase(BeamEntity.Phase.CHARGING);
                     beam.setPhaseTimer(0);
 
-                    Vec3 startCenter = new Vec3(centerX, centerY, centerZ);
                     beam.setCenterPos(startCenter);
 
                     if (mode == BeamEntity.Mode.SWEEP) {
-                        if (targetX != 0 || targetY != 0 || targetZ != 0) {
-                            beam.setFixedTargetPos(new Vec3(targetX, targetY, targetZ));
-                        }
+                        beam.setFixedTargetPos(fixedTarget);
                         BeamEntity.setKeyState(playerUUID, false, true);
                     } else {
                         BeamEntity.setKeyState(playerUUID, true, true);
@@ -145,31 +169,41 @@ public class BeamControlC2SPacket {
                 case UPDATE_CHARGE -> {
                     BeamEntity beam = BeamEntity.CHARGING_BEAMS.get(playerUUID);
                     if (beam == null || beam.isRemoved()) return;
+                    if (beam.getMode() != mode) {
+                        TheJudgement.LOGGER.warn("BeamControlC2SPacket.handle: mode mismatch!");
+                        return;
+                    }
                     if (mode == BeamEntity.Mode.BOMB) {
-                        beam.setCenterPos(new Vec3(centerX, centerY, centerZ));
+                        double chargeSeconds = beam.getTotalLifeTicks() / Config.TICKS_PER_SECOND;
+                        double sphereRadius = Math.min(
+                                Config.getBombInitRadius() + chargeSeconds * Config.getBombGrowRate(),
+                                85.0
+                        );
+                        Vec3 lookDirection = player.getLookAngle().normalize();
+                        beam.setCenterPos(player.getEyePosition(1.0F).add(lookDirection.scale(sphereRadius)));
                     } else if (mode == BeamEntity.Mode.SWEEP) {
-                        if (targetX != 0 || targetY != 0 || targetZ != 0) {
-                            beam.setFixedTargetPos(new Vec3(targetX, targetY, targetZ));
-                        }
+                        Vec3 horizontalDir = BeamMathHelper.getHorizontalDirection(player.getLookAngle());
+                        Vec3 horizontalTarget = player.position().add(horizontalDir.scale(Config.getSweepCircleRadius()));
+                        Vec3 target = new Vec3(horizontalTarget.x, beam.getCenterPos().y, horizontalTarget.z);
+                        beam.setFixedTargetPos(target);
                     }
                 }
 
                 case CANCEL_CHARGE -> {
-                    BeamEntity beam = BeamEntity.CHARGING_BEAMS.remove(playerUUID);
+                    BeamEntity beam = BeamEntity.CHARGING_BEAMS.get(playerUUID);
+                    if (beam != null && beam.getMode() != mode) return;
+                    BeamEntity.CHARGING_BEAMS.remove(playerUUID, beam);
                     if (beam != null && !beam.isRemoved()) {
                         beam.discard();
                     }
                     applyCooldown(player);
-                    if (mode == BeamEntity.Mode.BOMB) {
-                        BeamEntity.setKeyState(playerUUID, true, false);
-                    } else {
-                        BeamEntity.setKeyState(playerUUID, false, false);
-                    }
+                    BeamEntity.setKeyState(playerUUID, isLeftMode(mode), false);
                 }
 
                 case KEY_STATE -> {
-                    boolean isLeft = (mode == BeamEntity.Mode.BOMB);
-                    BeamEntity.setKeyState(playerUUID, isLeft, keyDown);
+                    BeamEntity beam = BeamEntity.CHARGING_BEAMS.get(playerUUID);
+                    if (beam != null && beam.getMode() != mode) return;
+                    BeamEntity.setKeyState(playerUUID, isLeftMode(mode), keyDown);
                 }
             }
         });
@@ -184,5 +218,9 @@ public class BeamControlC2SPacket {
         } else if (offHand.getItem() instanceof com.yiva.thejudgement.item.JudgementStaffItem staff) {
             player.getCooldowns().addCooldown(staff, com.yiva.thejudgement.Config.getCooldown() * 20);
         }
+    }
+
+    private static boolean isLeftMode(BeamEntity.Mode mode) {
+        return mode == BeamEntity.Mode.BOMB || mode == BeamEntity.Mode.DIRECT_BOMB;
     }
 }

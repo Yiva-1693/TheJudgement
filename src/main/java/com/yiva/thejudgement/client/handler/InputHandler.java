@@ -29,6 +29,7 @@ public class InputHandler {
     private static double rightPressY = 0;
     private static boolean leftCharging = false;
     private static boolean rightCharging = false;
+    private static BeamEntity.Mode leftMode = null;
 
     // ---------- 鼠标事件 ----------
     @SubscribeEvent
@@ -43,66 +44,49 @@ public class InputHandler {
         int button = event.getButton();
         int action = event.getAction();
 
-        // ========== 潜行左键：蓄力轰炸模式 ==========
+        // ========== 左键：潜行蓄力轰炸 / 非潜行直接轰炸 ==========
         if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
-                if (action == GLFW.GLFW_PRESS) {
-                    if (player.isShiftKeyDown()) {
-                    if (rightCharging) {
-                        cancelRight(player);
-                        return;
-                    }
-                    if (player.getCooldowns().isOnCooldown(mainHand.getItem())) return;
-                    if (leftCharging) return;
+            if (action == GLFW.GLFW_PRESS) {
+                if (rightCharging) {
+                    cancelRight(player);
+                    return;
+                }
+                if (player.getCooldowns().isOnCooldown(mainHand.getItem())) return;
+                if (leftCharging) return;
 
+                if (player.isShiftKeyDown()) {
                     leftPressTime = System.currentTimeMillis();
+                    leftMode = BeamEntity.Mode.BOMB;
                     leftCharging = true;
 
                     Vec3 eyePos = player.getEyePosition(1.0f);
-                    ModMessages.sendToServer(BeamControlC2SPacket.startCharge(BeamEntity.Mode.BOMB, eyePos, null, player.getUUID()));
-                    ModMessages.sendToServer(BeamControlC2SPacket.keyState(BeamEntity.Mode.BOMB, true, player.getUUID()));
-                }
-                    }else if (action == GLFW.GLFW_RELEASE) {
-                    if (leftCharging) {
-                        leftCharging = false;
-                        leftPressTime = 0;
-                        ModMessages.sendToServer(BeamControlC2SPacket.keyState(BeamEntity.Mode.BOMB, false, player.getUUID()));
-                    }
-                }
-        }
-
-        // ========== 非潜行左键：直接轰炸模式 ==========
-        if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
-            if (action == GLFW.GLFW_PRESS) {
-                if (!player.isShiftKeyDown()) { // 非潜行才触发
-                    if (rightCharging) {
-                        cancelRight(player);
-                        return;
-                    }
-                    if (player.getCooldowns().isOnCooldown(mainHand.getItem())) return;
-                    if (leftCharging) return;
-
-                    leftCharging = true;
+                    ModMessages.sendToServer(BeamControlC2SPacket.startCharge(leftMode, eyePos, null, player.getUUID()));
+                    ModMessages.sendToServer(BeamControlC2SPacket.keyState(leftMode, true, player.getUUID()));
+                } else {
 
                     // 射线检测，忽略流体
                     double maxRange = Config.getDirectBombMaxRange();
-                    net.minecraft.world.phys.HitResult hitResult = player.pick(maxRange, 1.0F, false);
-                    if (hitResult instanceof net.minecraft.world.phys.BlockHitResult blockHit) {
-                        net.minecraft.core.BlockPos blockPos = blockHit.getBlockPos();
+                    HitResult hitResult = player.pick(maxRange, 1.0F, false);
+                    if (hitResult instanceof BlockHitResult blockHit) {
+                        BlockPos blockPos = blockHit.getBlockPos();
                         Vec3 core = new Vec3(blockPos.getX() + 0.5, blockPos.getY() - 1.0, blockPos.getZ() + 0.5);
 
-                        ModMessages.sendToServer(BeamControlC2SPacket.startCharge(BeamEntity.Mode.DIRECT_BOMB, core, null, player.getUUID()));                    } else {
+                        leftMode = BeamEntity.Mode.DIRECT_BOMB;
+                        leftCharging = true;
+                        ModMessages.sendToServer(BeamControlC2SPacket.startCharge(leftMode, core, null, player.getUUID()));
+                    } else {
                         // 未命中方块则取消
-                        leftCharging = false;
                         return;
                     }
                 }
             } else if (action == GLFW.GLFW_RELEASE) {
                 if (leftCharging) {
-                    leftCharging = false;
-                    leftPressTime = 0;
-                    ModMessages.sendToServer(BeamControlC2SPacket.keyState(BeamEntity.Mode.BOMB, false, player.getUUID()));
+                    BeamEntity.Mode releasedMode = leftMode;
+                    resetLeftState();
+                    ModMessages.sendToServer(BeamControlC2SPacket.keyState(releasedMode, false, player.getUUID()));
                 }
             }
+            return;
         }
 
         // ========== 右键：扫射模式 ==========
@@ -158,7 +142,7 @@ public class InputHandler {
         }
 
         // 左键轰炸模式更新
-        if (leftCharging && player.isShiftKeyDown()) {
+        if (leftCharging && leftMode == BeamEntity.Mode.BOMB) {
             float chargeTime = (System.currentTimeMillis() - leftPressTime) / 1000.0f;
             double sphereRadius = Config.getBombInitRadius() + chargeTime * Config.getBombGrowRate();
             sphereRadius = Math.min(sphereRadius, 85.0);
@@ -184,10 +168,18 @@ public class InputHandler {
 
     // ---------- 取消方法 ----------
     private static void cancelLeft(LocalPlayer player) {
+        BeamEntity.Mode cancelledMode = leftMode;
+        resetLeftState();
+        // 不停止音效，让它自然播放或被发射音效打断
+        if (cancelledMode != null) {
+            ModMessages.sendToServer(BeamControlC2SPacket.cancelCharge(cancelledMode, player.getUUID()));
+        }
+    }
+
+    private static void resetLeftState() {
         leftCharging = false;
         leftPressTime = 0;
-        // 不停止音效，让它自然播放或被发射音效打断
-        ModMessages.sendToServer(BeamControlC2SPacket.cancelCharge(BeamEntity.Mode.BOMB, player.getUUID()));
+        leftMode = null;
     }
 
     private static void cancelRight(LocalPlayer player) {

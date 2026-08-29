@@ -141,7 +141,7 @@ public class BeamEntity extends Entity {
 
     public void enterFiringPhase() {
         // 从蓄力缓存中移除自身，允许新光束创建而不影响本光束
-        CHARGING_BEAMS.remove(ownerUUID);
+        CHARGING_BEAMS.remove(ownerUUID, this);
 
         phase = Phase.FIRING;
         entityData.set(PHASE, phase.ordinal());
@@ -183,7 +183,7 @@ public class BeamEntity extends Entity {
     private void cancelAndCooldown() {
         if (!level().isClientSide) {
             applyCooldownToOwner();
-            CHARGING_BEAMS.remove(ownerUUID);
+            CHARGING_BEAMS.remove(ownerUUID, this);
             this.discard();
             TheJudgement.LOGGER.info("Beam cancelled by internal condition for " + ownerUUID);
         }
@@ -214,7 +214,7 @@ public class BeamEntity extends Entity {
 
         if (!this.level().hasChunkAt(this.blockPosition())) {
             this.remove(RemovalReason.UNLOADED_WITH_PLAYER);
-            CHARGING_BEAMS.remove(ownerUUID);
+            CHARGING_BEAMS.remove(ownerUUID, this);
             return;
         }
 
@@ -333,7 +333,7 @@ public class BeamEntity extends Entity {
         int dissipateTicks = (int) (Config.getDissipateTime() * 20);
         if (phaseTimer >= dissipateTicks) {
             this.remove(RemovalReason.DISCARDED);
-            CHARGING_BEAMS.remove(ownerUUID);
+            CHARGING_BEAMS.remove(ownerUUID, this);
         }
     }
 
@@ -382,7 +382,7 @@ public class BeamEntity extends Entity {
                     living.invulnerableTime = 0;
                     living.hurtTime = 0;
 
-                    // 直接轰炸模式：命中玩家时返还冷却（仅发射阶段，且每个光束只触发一次）
+                    // 直接轰炸模式：命中生物时返还冷却（仅发射阶段，且每个光束只触发一次）
                     if ((mode == Mode.DIRECT_BOMB) && phase == Phase.FIRING && !hasRefundedCD) {
                         applyCooldownRefund(owner);
                         hasRefundedCD = true;
