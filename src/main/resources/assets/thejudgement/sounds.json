@@ -4,7 +4,8 @@
     "sounds": [
       {
         "name": "thejudgement:beam/abyss_blast_charge",
-        "stream": true
+        "stream": true,
+        "attenuation_distance": 100
       }
     ]
   },
@@ -13,9 +14,9 @@
     "sounds": [
       {
         "name": "thejudgement:beam/abyss_blast_shot",
-        "stream": true
+        "stream": true,
+        "attenuation_distance": 100
       }
-    ],
-    "attenuation_distance": 100
+    ]
   }
 }
