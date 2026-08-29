@@ -40,6 +40,7 @@ public class Config {
         public final ForgeConfigSpec.DoubleValue bombSphereInitRadius; // 瞄准球初始半径
         public final ForgeConfigSpec.DoubleValue bombSphereGrowRate;   // 瞄准球每秒增长半径
         public final ForgeConfigSpec.DoubleValue bombMaxChargeTime;    // 最大蓄力时间（超时自动取消）
+        public final ForgeConfigSpec.DoubleValue directBombMaxRange;
 
         // ---------- 右键扫射模式 ----------
         public final ForgeConfigSpec.DoubleValue sweepCircleRadius;    // 水平参考圆半径
@@ -60,7 +61,7 @@ public class Config {
                     .defineInRange("beamHeight", 40.0, 10.0, 100.0);
             baseDamagePerTick = builder
                     .comment("第二阶段每tick基础伤害（生命值）")
-                    .defineInRange("baseDamagePerTick", 10, 1, 100);
+                    .defineInRange("baseDamagePerTick", 30, 1, 100);
             builder.pop();
 
             builder.push("timing");
@@ -79,6 +80,9 @@ public class Config {
             bombSphereInitRadius = builder
                     .comment("轰炸模式瞄准球初始半径（格）")
                     .defineInRange("bombSphereInitRadius", 5.0, 1.0, 20.0);
+            directBombMaxRange = builder
+                    .comment("非潜行左键直接轰炸模式的最大选取距离（格）")
+                    .defineInRange("directBombMaxRange", 150.0, 8.0, 256.0);
             bombSphereGrowRate = builder
                     .comment("轰炸模式瞄准球每秒半径增长率（格/秒）")
                     .defineInRange("bombSphereGrowRate", 12.0, 1.0, 50.0);
@@ -93,13 +97,13 @@ public class Config {
                     .defineInRange("sweepCircleRadius", 80.0, 10.0, 100.0);
             sweepTrackSpeed = builder
                     .comment("扫射模式第一阶段追踪速度（格/秒）")
-                    .defineInRange("sweepTrackSpeed", 18.0, 1.0, 30.0);
+                    .defineInRange("sweepTrackSpeed", 20.0, 1.0, 30.0);
             sweepFireSpeed = builder
                     .comment("扫射模式第二阶段飞行速度（格/秒）")
-                    .defineInRange("sweepFireSpeed", 30.0, 5.0, 80.0);
+                    .defineInRange("sweepFireSpeed", 50.0, 5.0, 80.0);
             sweepMinDistance = builder
                     .comment("扫射模式最小安全距离（格），小于此值取消施法")
-                    .defineInRange("sweepMinDistance", 18.0, 1.0, 30.0);
+                    .defineInRange("sweepMinDistance", 1.0, 1.0, 30.0);
             builder.pop();
 
             builder.push("cooldown");
@@ -133,6 +137,7 @@ public class Config {
     public static double getSweepFireSpeed() { return COMMON.sweepFireSpeed.get(); }
     public static double getSweepMinDistance() { return COMMON.sweepMinDistance.get(); }
     public static int getCooldown() { return COMMON.cooldownSeconds.get(); }
+    public static double getDirectBombMaxRange() { return COMMON.directBombMaxRange.get(); }
 
     /**
      * Converts a configured speed in blocks per second to movement per game tick.
