@@ -17,6 +17,9 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.lwjgl.glfw.GLFW;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 
 @Mod.EventBusSubscriber(modid = TheJudgement.MOD_ID, value = Dist.CLIENT)
 public class InputHandler {
@@ -40,27 +43,63 @@ public class InputHandler {
         int button = event.getButton();
         int action = event.getAction();
 
-        // ========== 左键：轰炸模式 ==========
+        // ========== 潜行左键：蓄力轰炸模式 ==========
+        if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+                if (action == GLFW.GLFW_PRESS) {
+                    if (player.isShiftKeyDown()) {
+                    if (rightCharging) {
+                        cancelRight(player);
+                        return;
+                    }
+                    if (player.getCooldowns().isOnCooldown(mainHand.getItem())) return;
+                    if (leftCharging) return;
+
+                    leftPressTime = System.currentTimeMillis();
+                    leftCharging = true;
+
+                    Vec3 eyePos = player.getEyePosition(1.0f);
+                    ModMessages.sendToServer(BeamControlC2SPacket.startCharge(BeamEntity.Mode.BOMB, eyePos, null, player.getUUID()));
+                    ModMessages.sendToServer(BeamControlC2SPacket.keyState(BeamEntity.Mode.BOMB, true, player.getUUID()));
+                }
+                    }else if (action == GLFW.GLFW_RELEASE) {
+                    if (leftCharging) {
+                        leftCharging = false;
+                        leftPressTime = 0;
+                        ModMessages.sendToServer(BeamControlC2SPacket.keyState(BeamEntity.Mode.BOMB, false, player.getUUID()));
+                    }
+                }
+        }
+
+        // ========== 非潜行左键：直接轰炸模式 ==========
         if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
             if (action == GLFW.GLFW_PRESS) {
-                if (rightCharging) {
-                    cancelRight(player);
-                    return;
+                if (!player.isShiftKeyDown()) { // 非潜行才触发
+                    if (rightCharging) {
+                        cancelRight(player);
+                        return;
+                    }
+                    if (player.getCooldowns().isOnCooldown(mainHand.getItem())) return;
+                    if (leftCharging) return;
+
+                    leftCharging = true;
+
+                    // 射线检测，忽略流体
+                    double maxRange = Config.getDirectBombMaxRange();
+                    net.minecraft.world.phys.HitResult hitResult = player.pick(maxRange, 1.0F, false);
+                    if (hitResult instanceof net.minecraft.world.phys.BlockHitResult blockHit) {
+                        net.minecraft.core.BlockPos blockPos = blockHit.getBlockPos();
+                        Vec3 core = new Vec3(blockPos.getX() + 0.5, blockPos.getY() - 1.0, blockPos.getZ() + 0.5);
+
+                        ModMessages.sendToServer(BeamControlC2SPacket.startCharge(BeamEntity.Mode.DIRECT_BOMB, core, null, player.getUUID()));                    } else {
+                        // 未命中方块则取消
+                        leftCharging = false;
+                        return;
+                    }
                 }
-                if (player.getCooldowns().isOnCooldown(mainHand.getItem())) return;
-                if (leftCharging) return;
-
-                leftPressTime = System.currentTimeMillis();
-                leftCharging = true;
-
-                Vec3 eyePos = player.getEyePosition(1.0f);
-                ModMessages.sendToServer(BeamControlC2SPacket.startCharge(BeamEntity.Mode.BOMB, eyePos, null, player.getUUID()));
-                ModMessages.sendToServer(BeamControlC2SPacket.keyState(BeamEntity.Mode.BOMB, true, player.getUUID()));
             } else if (action == GLFW.GLFW_RELEASE) {
                 if (leftCharging) {
                     leftCharging = false;
                     leftPressTime = 0;
-                    // 松开按键不停止音效
                     ModMessages.sendToServer(BeamControlC2SPacket.keyState(BeamEntity.Mode.BOMB, false, player.getUUID()));
                 }
             }
@@ -119,7 +158,7 @@ public class InputHandler {
         }
 
         // 左键轰炸模式更新
-        if (leftCharging) {
+        if (leftCharging && player.isShiftKeyDown()) {
             float chargeTime = (System.currentTimeMillis() - leftPressTime) / 1000.0f;
             double sphereRadius = Config.getBombInitRadius() + chargeTime * Config.getBombGrowRate();
             sphereRadius = Math.min(sphereRadius, 85.0);

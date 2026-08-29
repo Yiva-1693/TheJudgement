@@ -35,7 +35,8 @@ public class BeamEntity extends Entity {
 
     public enum Mode {
         BOMB,
-        SWEEP
+        SWEEP,
+        DIRECT_BOMB    // 直接轰炸（非潜行左键）
     }
 
     public enum Phase {
@@ -70,6 +71,7 @@ public class BeamEntity extends Entity {
     private int phaseTimer;
     private int totalLifeTicks;
     private double currentRadius;
+    private boolean hasRefundedCD = false; // 是否已返还冷却（每个光束只触发一次）
     @Nullable
     private Vec3 fixedTargetPos;
 
@@ -138,6 +140,9 @@ public class BeamEntity extends Entity {
     }
 
     public void enterFiringPhase() {
+        // 从蓄力缓存中移除自身，允许新光束创建而不影响本光束
+        CHARGING_BEAMS.remove(ownerUUID);
+
         phase = Phase.FIRING;
         entityData.set(PHASE, phase.ordinal());
         phaseTimer = 0;
@@ -181,6 +186,19 @@ public class BeamEntity extends Entity {
             CHARGING_BEAMS.remove(ownerUUID);
             this.discard();
             TheJudgement.LOGGER.info("Beam cancelled by internal condition for " + ownerUUID);
+        }
+    }
+
+    // ==================== 命中返还冷却冷却 ====================
+
+    private void applyCooldownRefund(Player owner) {
+        if (owner == null || this.level().isClientSide) return;
+        var mainHand = owner.getMainHandItem();
+        var offHand = owner.getOffhandItem();
+        if (mainHand.getItem() instanceof JudgementStaffItem staff) {
+            owner.getCooldowns().removeCooldown(staff);
+        } else if (offHand.getItem() instanceof JudgementStaffItem staff) {
+            owner.getCooldowns().removeCooldown(staff);
         }
     }
 
@@ -267,7 +285,7 @@ public class BeamEntity extends Entity {
         }
 
         // 检查对应按键是否已松开
-        boolean keyDown = (mode == Mode.BOMB) ? isKeyDown(ownerUUID, true) : isKeyDown(ownerUUID, false);
+        boolean keyDown = (mode == Mode.BOMB || mode == Mode.DIRECT_BOMB) ? isKeyDown(ownerUUID, true) : isKeyDown(ownerUUID, false);
         if (!keyDown) {
             enterFiringPhase();
         }
@@ -333,12 +351,12 @@ public class BeamEntity extends Entity {
         Vec3 cylinderBase = new Vec3(centerPos.x, centerPos.y - height, centerPos.z);
 
         AABB searchBox = new AABB(
-                centerPos.x - currentRadius - 2,
-                cylinderBase.y - 2,
-                centerPos.z - currentRadius - 2,
-                centerPos.x + currentRadius + 2,
-                cylinderBase.y + cylinderHeight + 2,
-                centerPos.z + currentRadius + 2
+                centerPos.x - currentRadius - 3,
+                cylinderBase.y - 3,
+                centerPos.z - currentRadius - 3,
+                centerPos.x + currentRadius + 3,
+                cylinderBase.y + cylinderHeight + 3,
+                centerPos.z + currentRadius + 3
         );
 
         List<Entity> entities = this.level().getEntities(this, searchBox, e -> e instanceof LivingEntity);
@@ -363,6 +381,12 @@ public class BeamEntity extends Entity {
                     living.hurt(source, damage);
                     living.invulnerableTime = 0;
                     living.hurtTime = 0;
+
+                    // 直接轰炸模式：命中玩家时返还冷却（仅发射阶段，且每个光束只触发一次）
+                    if ((mode == Mode.DIRECT_BOMB) && phase == Phase.FIRING && !hasRefundedCD) {
+                        applyCooldownRefund(owner);
+                        hasRefundedCD = true;
+                    }
                 }
             }
         }
