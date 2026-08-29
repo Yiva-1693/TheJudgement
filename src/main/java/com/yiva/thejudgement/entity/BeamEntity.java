@@ -67,7 +67,6 @@ public class BeamEntity extends Entity {
     private Phase phase;
     private Vec3 centerPos;
     private Vec3 moveDirection;
-    private double moveSpeed;
     private int phaseTimer;
     private int totalLifeTicks;
     private double currentRadius;
@@ -81,7 +80,6 @@ public class BeamEntity extends Entity {
         this.totalLifeTicks = 0;
         this.currentRadius = Config.getBeamRadius();
         this.moveDirection = Vec3.ZERO;
-        this.moveSpeed = 0;
         this.noPhysics = true;
         this.centerPos = Vec3.ZERO;
     }
@@ -153,9 +151,6 @@ public class BeamEntity extends Entity {
             if (dir.horizontalDistanceSqr() > 0.01) {
                 moveDirection = BeamMathHelper.getHorizontalDirection(dir);
             }
-            moveSpeed = Config.getSweepFireSpeed();
-        } else {
-            moveSpeed = 0;
         }
 
         applyCooldownToOwner();
@@ -233,7 +228,7 @@ public class BeamEntity extends Entity {
             Vec3 delta = fixedTargetPos.subtract(centerPos);
             double distance = delta.horizontalDistance();
             if (distance > 0.1) {
-                double speedPerTick = Config.getSweepTrackSpeed() * 0.05;
+                double speedPerTick = Config.blocksPerSecondToBlocksPerTick(Config.getSweepTrackSpeed());
                 Vec3 step = delta.normalize().scale(Math.min(speedPerTick, distance));
                 centerPos = centerPos.add(step);
             }
@@ -265,7 +260,7 @@ public class BeamEntity extends Entity {
             Vec3 delta = fixedTargetPos.subtract(centerPos);
             double distance = delta.horizontalDistance();
             if (distance > 0.1) {
-                double speedPerTick = Config.getSweepTrackSpeed() * 0.05;
+                double speedPerTick = Config.blocksPerSecondToBlocksPerTick(Config.getSweepTrackSpeed());
                 Vec3 step = delta.normalize().scale(Math.min(speedPerTick, distance));
                 centerPos = centerPos.add(step);
             }
@@ -286,7 +281,7 @@ public class BeamEntity extends Entity {
 //        spawnParticles();
 
         if (mode == Mode.SWEEP && moveDirection != Vec3.ZERO) {
-            double speedPerTick = moveSpeed * 0.05;
+            double speedPerTick = Config.blocksPerSecondToBlocksPerTick(Config.getSweepFireSpeed());
             centerPos = centerPos.add(moveDirection.scale(speedPerTick));
         }
 
@@ -313,7 +308,7 @@ public class BeamEntity extends Entity {
         }
 
         if (mode == Mode.SWEEP && moveDirection != Vec3.ZERO) {
-            double speedPerTick = moveSpeed * 0.05;
+            double speedPerTick = Config.blocksPerSecondToBlocksPerTick(Config.getSweepFireSpeed());
             centerPos = centerPos.add(moveDirection.scale(speedPerTick));
         }
 

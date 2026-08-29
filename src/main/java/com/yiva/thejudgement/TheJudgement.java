@@ -26,7 +26,11 @@ public class TheJudgement {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 
         // 注册配置文件
-        ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, Config.SPEC);
+        ModLoadingContext.get().registerConfig(
+                ModConfig.Type.COMMON,
+                Config.SPEC,
+                MOD_ID + "-common.toml"
+        );
 
         // ---- 注册所有模组内容 ----
         // 物品
