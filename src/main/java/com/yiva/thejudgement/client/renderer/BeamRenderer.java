@@ -20,6 +20,9 @@ public class BeamRenderer extends EntityRenderer<BeamEntity> {
     private static final ResourceLocation WHITE_BEAM_TEXTURE =
             new ResourceLocation("thejudgement", "textures/entity/white_beam.png");
 
+    private static final ResourceLocation SURFACE_TEXTURE =
+            new ResourceLocation("thejudgement", "textures/entity/surface.png");
+
     private static final ResourceLocation BEAM_TEXTURE =
             new ResourceLocation("thejudgement", "textures/entity/abyss_laser_beam_single.png");
 
@@ -57,7 +60,7 @@ public class BeamRenderer extends EntityRenderer<BeamEntity> {
     private static final float RIFT_RADIUS = 15.0f;
     private static final float PORTAL_RADIUS = 8.0f;
     private static final float AIM_MARKER_RADIUS = 3f;
-    private static final int SEGMENTS = 32;
+    private static final int SEGMENTS = 8;
 
     private static final int RIFT_GROW_INTERVAL = 12;
     private static final int RIFT_IDLE_INTERVAL = 3;
@@ -107,19 +110,12 @@ public class BeamRenderer extends EntityRenderer<BeamEntity> {
         super.render(entity, entityYaw, partialTicks, poseStack, buffer, packedLight);
     }
 
-    private void renderBeam(BeamEntity entity, Vec3 center, double radius, double height,
-                            PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
-        poseStack.pushPose();
-        poseStack.translate(center.x - entity.getX(), center.y - entity.getY(), center.z - entity.getZ());
-
-        RenderSystem.depthMask(false);
-        RenderType renderType = RenderType.entityTranslucent(BEAM_TEXTURE);
+    private void renderCylinderLayer(MultiBufferSource buffer, PoseStack poseStack,
+                                     float bottomY, float topY, double radius, float angleStep,
+                                     ResourceLocation texture, int packedLight, float alpha) {
+        RenderType renderType = RenderType.entityTranslucentEmissive(texture);
         VertexConsumer consumer = buffer.getBuffer(renderType);
         Matrix4f pose = poseStack.last().pose();
-
-        float bottomY = -(float) Config.getBeamHeight();
-        float topY = (float) Config.getBeamHeight();
-        float angleStep = (float) (2 * Math.PI / SEGMENTS);
 
         for (int i = 0; i < SEGMENTS; i++) {
             float angle1 = i * angleStep;
@@ -135,90 +131,65 @@ public class BeamRenderer extends EntityRenderer<BeamEntity> {
 
             float u1 = (float) i / SEGMENTS;
             float u2 = (float) (i + 1) / SEGMENTS;
-            float outAlpha = 0.2f;
 
+            // 纯白调制，仅保留透明度
             consumer.vertex(pose, x1, bottomY, z1)
-                  .color(1f, 1f, 1f, outAlpha)
+                    .color(1f, 1f, 1f, alpha)
                     .uv(u1, 1)
-                    .overlayCoords(OverlayTexture.NO_OVERLAY)
+                     .overlayCoords(OverlayTexture.NO_OVERLAY)
                     .uv2(packedLight)
                     .normal(cos1, 0, sin1)
                     .endVertex();
             consumer.vertex(pose, x2, bottomY, z2)
-                  .color(1f, 1f, 1f, outAlpha)
+                    .color(1f, 1f, 1f, alpha)
                     .uv(u2, 1)
-                    .overlayCoords(OverlayTexture.NO_OVERLAY)
+                     .overlayCoords(OverlayTexture.NO_OVERLAY)
                     .uv2(packedLight)
                     .normal(cos2, 0, sin2)
                     .endVertex();
             consumer.vertex(pose, x2, topY, z2)
-                  .color(1f, 1f, 1f, outAlpha)
+                    .color(1f, 1f, 1f, alpha)
                     .uv(u2, 0)
-                    .overlayCoords(OverlayTexture.NO_OVERLAY)
+                     .overlayCoords(OverlayTexture.NO_OVERLAY)
                     .uv2(packedLight)
                     .normal(cos2, 0, sin2)
                     .endVertex();
             consumer.vertex(pose, x1, topY, z1)
-                  .color(1f, 1f, 1f, outAlpha)
+                    .color(1f, 1f, 1f, alpha)
                     .uv(u1, 0)
-                    .overlayCoords(OverlayTexture.NO_OVERLAY)
+                     .overlayCoords(OverlayTexture.NO_OVERLAY)
                     .uv2(packedLight)
                     .normal(cos1, 0, sin1)
                     .endVertex();
         }
+    }
 
-        RenderType whiteRenderType = RenderType.entityTranslucent(WHITE_BEAM_TEXTURE);
-        VertexConsumer whiteConsumer = buffer.getBuffer(whiteRenderType);
-        Matrix4f whitePose = poseStack.last().pose();
+    private void renderBeam(BeamEntity entity, Vec3 center, double radius, double height,
+                            PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
+        poseStack.pushPose();
+        poseStack.translate(center.x - entity.getX(), center.y - entity.getY(), center.z - entity.getZ());
 
-        double innerRadius = radius * 0.7; // 内部半径为外部的一半
-        float innerAlpha = 0.85f;          // 更不透明
+        // 关闭深度写入，保证多层叠加时内层可见
+        RenderSystem.depthMask(false);
 
-        for (int i = 0; i < SEGMENTS; i++) {
-            float angle1 = i * angleStep;
-            float angle2 = (i + 1) * angleStep;
-            float cos1 = (float) Math.cos(angle1);
-            float sin1 = (float) Math.sin(angle1);
-            float cos2 = (float) Math.cos(angle2);
-            float sin2 = (float) Math.sin(angle2);
-            float x1 = (float) (innerRadius * cos1);
-            float z1 = (float) (innerRadius * sin1);
-            float x2 = (float) (innerRadius * cos2);
-            float z2 = (float) (innerRadius * sin2);
+        float bottomY = -(float) Config.getBeamHeight();
+        float topY = (float) Config.getBeamHeight();
+        float angleStep = (float) (2 * Math.PI / SEGMENTS);
 
-            float u1 = (float) i / SEGMENTS;
-            float u2 = (float) (i + 1) / SEGMENTS;
+        // ========== 第一层：外层光晕（半径100%，深紫色，透明度0.15） ==========
+        renderCylinderLayer(buffer, poseStack, bottomY, topY, radius, angleStep,
+                SURFACE_TEXTURE, packedLight, 0.20f);
 
-            whiteConsumer.vertex(whitePose, x1, bottomY, z1)
-                  .color(1f, 1f, 1f, innerAlpha)
-                    .uv(u1, 1)
-                    .overlayCoords(OverlayTexture.NO_OVERLAY)
-                    .uv2(packedLight)
-                    .normal(cos1, 0, sin1)
-                    .endVertex();
-            whiteConsumer.vertex(whitePose, x2, bottomY, z2)
-                  .color(1f, 1f, 1f, innerAlpha)
-                    .uv(u2, 1)
-                    .overlayCoords(OverlayTexture.NO_OVERLAY)
-                    .uv2(packedLight)
-                    .normal(cos2, 0, sin2)
-                    .endVertex();
-            whiteConsumer.vertex(whitePose, x2, topY, z2)
-                  .color(1f, 1f, 1f, innerAlpha)
-                    .uv(u2, 0)
-                    .overlayCoords(OverlayTexture.NO_OVERLAY)
-                    .uv2(packedLight)
-                    .normal(cos2, 0, sin2)
-                    .endVertex();
-            whiteConsumer.vertex(whitePose, x1, topY, z1)
-                  .color(1f, 1f, 1f, innerAlpha)
-                    .uv(u1, 0)
-                    .overlayCoords(OverlayTexture.NO_OVERLAY)
-                    .uv2(packedLight)
-                    .normal(cos1, 0, sin1)
-                    .endVertex();
-        }
+        // ========== 第二层：主能量层（半径65%，亮紫色，透明度0.85） ==========
+        renderCylinderLayer(buffer, poseStack, bottomY, topY, radius * 0.65, angleStep,
+                BEAM_TEXTURE, packedLight, 0.75f);
+
+        // ========== 第三层：白色核心（半径20%，高亮白，透明度0.95） ==========
+        renderCylinderLayer(buffer, poseStack, bottomY, topY, radius * 0.20, angleStep,
+                WHITE_BEAM_TEXTURE, packedLight, 0.95f);
+        // 恢复深度写入
         RenderSystem.depthMask(true);
+
         poseStack.popPose();
     }
 
