@@ -1,11 +1,15 @@
 package com.yiva.thejudgement;
 
 import net.minecraftforge.common.ForgeConfigSpec;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.event.config.ModConfigEvent;
 import org.apache.commons.lang3.tuple.Pair;
 
 @Mod.EventBusSubscriber(modid = TheJudgement.MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD)
 public class Config {
+
+    public static final double TICKS_PER_SECOND = 20.0;
 
     // 通用配置实例
     public static final CommonConfig COMMON;
@@ -129,4 +133,39 @@ public class Config {
     public static double getSweepFireSpeed() { return COMMON.sweepFireSpeed.get(); }
     public static double getSweepMinDistance() { return COMMON.sweepMinDistance.get(); }
     public static int getCooldown() { return COMMON.cooldownSeconds.get(); }
+
+    /**
+     * Converts a configured speed in blocks per second to movement per game tick.
+     */
+    public static double blocksPerSecondToBlocksPerTick(double blocksPerSecond) {
+        return blocksPerSecond / TICKS_PER_SECOND;
+    }
+
+    @SubscribeEvent
+    public static void onConfigLoading(ModConfigEvent.Loading event) {
+        if (event.getConfig().getSpec() == SPEC) {
+            logEffectiveValues("loaded", event.getConfig().getFileName());
+        }
+    }
+
+    @SubscribeEvent
+    public static void onConfigReloading(ModConfigEvent.Reloading event) {
+        if (event.getConfig().getSpec() == SPEC) {
+            logEffectiveValues("reloaded", event.getConfig().getFileName());
+        }
+    }
+
+    private static void logEffectiveValues(String action, String fileName) {
+        TheJudgement.LOGGER.info(
+                "Config {} from {}: baseDamagePerTick={}, sweepTrackSpeed={} blocks/s ({} blocks/tick), " +
+                        "sweepFireSpeed={} blocks/s ({} blocks/tick)",
+                action,
+                fileName,
+                getBaseDamage(),
+                getSweepTrackSpeed(),
+                blocksPerSecondToBlocksPerTick(getSweepTrackSpeed()),
+                getSweepFireSpeed(),
+                blocksPerSecondToBlocksPerTick(getSweepFireSpeed())
+        );
+    }
 }
