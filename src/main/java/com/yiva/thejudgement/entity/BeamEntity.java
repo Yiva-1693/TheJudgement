@@ -60,6 +60,7 @@ public class BeamEntity extends Entity {
     private static final Map<UUID, Boolean> LEFT_KEY_DOWN = new HashMap<>();
     private static final Map<UUID, Boolean> RIGHT_KEY_DOWN = new HashMap<>();
 
+
     // 光束缓存
     public static final Map<UUID, BeamEntity> CHARGING_BEAMS = new HashMap<>();
 
@@ -140,8 +141,7 @@ public class BeamEntity extends Entity {
     }
 
     public void enterFiringPhase() {
-        // 从蓄力缓存中移除自身，允许新光束创建而不影响本光束
-        CHARGING_BEAMS.remove(ownerUUID, this);
+
 
         phase = Phase.FIRING;
         entityData.set(PHASE, phase.ordinal());
@@ -158,7 +158,7 @@ public class BeamEntity extends Entity {
             }
         }
 
-        applyCooldownToOwner();
+//        applyCooldownToOwner();
     }
 
 //    private void spawnParticles() {
@@ -188,7 +188,21 @@ public class BeamEntity extends Entity {
             TheJudgement.LOGGER.info("Beam cancelled by internal condition for " + ownerUUID);
         }
     }
+    private boolean isOwnerOnCooldown() {
+        if (ownerUUID == null || level().isClientSide) return false;
+        Player owner = level().getPlayerByUUID(ownerUUID);
+        if (owner == null) return false;
 
+        var mainHand = owner.getMainHandItem();
+        var offHand = owner.getOffhandItem();
+
+        if (mainHand.getItem() instanceof JudgementStaffItem staff) {
+            return owner.getCooldowns().isOnCooldown(staff);
+        } else if (offHand.getItem() instanceof JudgementStaffItem staff) {
+            return owner.getCooldowns().isOnCooldown(staff);
+        }
+        return false;
+    }
     // ==================== 命中返还冷却冷却 ====================
 
     private void applyCooldownRefund(Player owner) {
@@ -236,6 +250,10 @@ public class BeamEntity extends Entity {
     private void tickCharging() {
         phaseTimer++;
 
+        if (!(BeamEntity.isKeyDown(ownerUUID, true)||BeamEntity.isKeyDown(ownerUUID, false)) && !isOwnerOnCooldown()){
+            CHARGING_BEAMS.remove(ownerUUID, this);
+            applyCooldownToOwner();
+        }
         // 扫射模式：核心向目标追踪移动，同时检查距离过近
         if (mode == Mode.SWEEP && fixedTargetPos != null) {
             double dist = centerPos.distanceTo(fixedTargetPos);
@@ -253,15 +271,37 @@ public class BeamEntity extends Entity {
         }
 
         int chargeTicks = (int) (Config.getChargeTime() * 20);
-        if (phaseTimer >= chargeTicks) {
+        if (phaseTimer >= chargeTicks && mode != Mode.BOMB) {
             phase = Phase.CHARGED_WAIT;
             entityData.set(PHASE, phase.ordinal());
             phaseTimer = 0;
             entityData.set(PHASE_TIMER, 0);
         }
+
+        // 扫射模式或潜行轰炸模式：核心向目标追踪移动
+        if (mode == Mode.BOMB && fixedTargetPos != null) {
+            double dist = centerPos.distanceTo(fixedTargetPos);
+            if (dist > 0.1) {
+                double speed = (mode == Mode.SWEEP) ? Config.getSweepTrackSpeed() : Config.getChaseSpeed();
+                double speedPerTick = Config.blocksPerSecondToBlocksPerTick(speed);
+                Vec3 delta = fixedTargetPos.subtract(centerPos);
+                Vec3 step = delta.normalize().scale(Math.min(speedPerTick, dist));
+                centerPos = centerPos.add(step);
+            }
+        }
+
+        int chargeTick = (int) (Config.getChargeTime() * 20);
+        if (phaseTimer >= chargeTick && ((mode == Mode.BOMB) || (mode == Mode.DIRECT_BOMB))) {
+            // 潜行轰炸模式没有等待阶段，直接进入发射
+            enterFiringPhase();
+        }
     }
 
     private void tickChargedWait() {
+        if (!(BeamEntity.isKeyDown(ownerUUID, true)||BeamEntity.isKeyDown(ownerUUID, false)) && !isOwnerOnCooldown()){
+            CHARGING_BEAMS.remove(ownerUUID, this);
+            applyCooldownToOwner();
+        }
         // 检查总蓄力时长是否超限
         if (totalLifeTicks > Config.getMaxChargeDuration() * 20) {
             cancelAndCooldown();
@@ -293,10 +333,24 @@ public class BeamEntity extends Entity {
 
     private void tickFiring() {
         phaseTimer++;
+        if (!(BeamEntity.isKeyDown(ownerUUID, true)||BeamEntity.isKeyDown(ownerUUID, false)) && !isOwnerOnCooldown()){
+            CHARGING_BEAMS.remove(ownerUUID, this);
+            if (!hasRefundedCD)
+                applyCooldownToOwner();
+        }
         currentRadius = Config.getBeamRadius();
         entityData.set(RADIUS, (float) currentRadius);
         applyDamage();
-//        spawnParticles();
+        // 潜行轰炸模式：继续向最后目标移动
+        if (mode == Mode.BOMB && fixedTargetPos != null) {
+            double dist = centerPos.distanceTo(fixedTargetPos);
+            if (dist > 0.1) {
+                double speedPerTick = Config.blocksPerSecondToBlocksPerTick(Config.getChaseSpeed());
+                Vec3 delta = fixedTargetPos.subtract(centerPos);
+                Vec3 step = delta.normalize().scale(Math.min(speedPerTick, dist));
+                centerPos = centerPos.add(step);
+            }
+        }
 
         if (mode == Mode.SWEEP && moveDirection != Vec3.ZERO) {
             double speedPerTick = Config.blocksPerSecondToBlocksPerTick(Config.getSweepFireSpeed());
@@ -314,15 +368,31 @@ public class BeamEntity extends Entity {
 
     private void tickDissipating() {
         phaseTimer++;
-
+        if (!(BeamEntity.isKeyDown(ownerUUID, true)||BeamEntity.isKeyDown(ownerUUID, false)) && !isOwnerOnCooldown()){
+            CHARGING_BEAMS.remove(ownerUUID, this);
+            if (!hasRefundedCD)
+                applyCooldownToOwner();
+        }
         double progress = (double) phaseTimer / (int) (Config.getDissipateTime() * 20);
-        double shrinkFactor = 1 - (progress * progress);
+        double shrinkFactor = (progress-1)*(progress-1)*(1-progress);
         currentRadius = Config.getBeamRadius() * Math.max(0, shrinkFactor);
         entityData.set(RADIUS, (float) currentRadius);
 
-        if (currentRadius > 0.1) {
+        if (currentRadius > 0) {
             applyDamage();
 //            spawnParticles();
+        }else if (mode == Mode.BOMB && !isOwnerOnCooldown() && !hasRefundedCD)
+            applyCooldownToOwner();
+
+        // 潜行轰炸模式：继续向最后目标移动
+        if (mode == Mode.BOMB && fixedTargetPos != null) {
+            double dist = centerPos.distanceTo(fixedTargetPos);
+            if (dist > 0.1) {
+                double speedPerTick = Config.blocksPerSecondToBlocksPerTick(Config.getChaseSpeed());
+                Vec3 delta = fixedTargetPos.subtract(centerPos);
+                Vec3 step = delta.normalize().scale(Math.min(speedPerTick, dist));
+                centerPos = centerPos.add(step);
+            }
         }
 
         if (mode == Mode.SWEEP && moveDirection != Vec3.ZERO) {

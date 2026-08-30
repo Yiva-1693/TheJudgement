@@ -59,8 +59,10 @@ public class InputHandler {
                     leftMode = BeamEntity.Mode.BOMB;
                     leftCharging = true;
 
-                    Vec3 eyePos = player.getEyePosition(1.0f);
-                    ModMessages.sendToServer(BeamControlC2SPacket.startCharge(leftMode, eyePos, null, player.getUUID()));
+                    // 初始 Core 在玩家脚下（取整）
+                    BlockPos playerPos = player.blockPosition();
+                    Vec3 core = new Vec3(playerPos.getX() + 0.5, playerPos.getY(), playerPos.getZ() + 0.5);
+                    ModMessages.sendToServer(BeamControlC2SPacket.startCharge(leftMode, core, null, player.getUUID()));
                     ModMessages.sendToServer(BeamControlC2SPacket.keyState(leftMode, true, player.getUUID()));
                 } else {
 
@@ -141,18 +143,16 @@ public class InputHandler {
             return;
         }
 
-        // 左键轰炸模式更新
         if (leftCharging && leftMode == BeamEntity.Mode.BOMB) {
-            float chargeTime = (System.currentTimeMillis() - leftPressTime) / 1000.0f;
-            double sphereRadius = Config.getBombInitRadius() + chargeTime * Config.getBombGrowRate();
-            sphereRadius = Math.min(sphereRadius, 85.0);
+            Vec3 start = player.getEyePosition(1.0f);
+            Vec3 look = player.getLookAngle();
+            double maxRange = Config.getDirectBombMaxRange();
+            Vec3 end = start.add(look.scale(maxRange));
 
-            Vec3 eyePos = player.getEyePosition(1.0f);
-            Vec3 lookVec = player.getLookAngle();
-            var hitOpt = BeamMathHelper.intersectRayWithSphere(eyePos, lookVec, eyePos, sphereRadius);
+            var hitOpt = BeamMathHelper.findEntityOnLine(mc.level, start, end, player);
             if (hitOpt.isPresent()) {
-                Vec3 core = hitOpt.get();
-                ModMessages.sendToServer(BeamControlC2SPacket.updateCharge(BeamEntity.Mode.BOMB, core, null, player.getUUID()));
+                Vec3 target = hitOpt.get(); // 已经是脚底取整坐标
+                ModMessages.sendToServer(BeamControlC2SPacket.updateCharge(BeamEntity.Mode.BOMB, null, target, player.getUUID()));
             }
         }
 
