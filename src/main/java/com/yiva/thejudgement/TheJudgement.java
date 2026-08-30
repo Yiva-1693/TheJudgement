@@ -1,6 +1,7 @@
 package com.yiva.thejudgement;
 
 import com.yiva.thejudgement.entity.ModEntities;
+import com.yiva.thejudgement.item.ModCreativeTabs;
 import com.yiva.thejudgement.item.ModItems;
 import com.yiva.thejudgement.network.ModMessages;
 import com.yiva.thejudgement.sound.ModSounds;
@@ -35,6 +36,8 @@ public class TheJudgement {
         // ---- 注册所有模组内容 ----
         // 物品
         ModItems.register(modEventBus);
+        // 创造模式页签
+        ModCreativeTabs.register(modEventBus);
         // 实体
         ModEntities.register(modEventBus);
         // 音效

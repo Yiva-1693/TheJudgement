@@ -7,7 +7,6 @@ import com.yiva.thejudgement.util.BeamMathHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
-import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -22,8 +21,6 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.network.NetworkHooks;
 import com.yiva.thejudgement.particle.ModParticles;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.RandomSource;
 
 import javax.annotation.Nullable;
 import java.util.HashMap;
@@ -48,6 +45,8 @@ public class BeamEntity extends Entity {
 
     // 同步字段
     private static final EntityDataAccessor<Integer> PHASE =
+            SynchedEntityData.defineId(BeamEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> MODE =
             SynchedEntityData.defineId(BeamEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Float> RADIUS =
             SynchedEntityData.defineId(BeamEntity.class, EntityDataSerializers.FLOAT);
@@ -78,6 +77,7 @@ public class BeamEntity extends Entity {
 
     public BeamEntity(EntityType<?> entityType, Level level) {
         super(entityType, level);
+        this.mode = Mode.BOMB;
         this.phase = Phase.CHARGING;
         this.phaseTimer = 0;
         this.totalLifeTicks = 0;
@@ -113,6 +113,7 @@ public class BeamEntity extends Entity {
 
     public void setMode(Mode mode) {
         this.mode = mode;
+        this.entityData.set(MODE, mode.ordinal());
     }
 
     public void setCenterPos(Vec3 pos) {
@@ -161,23 +162,6 @@ public class BeamEntity extends Entity {
 //        applyCooldownToOwner();
     }
 
-//    private void spawnParticles() {
-//        if (this.level() instanceof ServerLevel serverLevel) {
-//            int particleCount = 3;
-//            double radius = currentRadius * 0.8;
-//            double halfHeight = Config.getBeamHeight();
-//            RandomSource random = this.random; // 使用正确的类型
-//
-//            for (int i = 0; i < particleCount; i++) {
-//                double angle = random.nextDouble() * 2 * Math.PI;
-//                double distance = random.nextDouble() * radius;
-//                double x = centerPos.x + Math.cos(angle) * distance;
-//                double z = centerPos.z + Math.sin(angle) * distance;
-//                double y = centerPos.y - halfHeight + random.nextDouble() * (halfHeight * 2);
-//                serverLevel.sendParticles(ModParticles.ENERGY_SPARK.get(), x, y, z, 1, 0, 0, 0, 0);
-//            }
-//        }
-//    }
     // ==================== 取消施法并冷却 ====================
 
     private void cancelAndCooldown() {
@@ -448,9 +432,12 @@ public class BeamEntity extends Entity {
 
                 if (damage > 0) {
                     DamageSource source = this.level().damageSources().indirectMagic(this, owner);
-                    living.hurt(source, damage);
+                    boolean hurt = living.hurt(source, damage);
                     living.invulnerableTime = 0;
                     living.hurtTime = 0;
+                    if (hurt) {
+                        spawnHitParticles(living);
+                    }
 
                     // 直接轰炸模式：命中生物时返还冷却（仅发射阶段，且每个光束只触发一次）
                     if ((mode == Mode.DIRECT_BOMB) && phase == Phase.FIRING && !hasRefundedCD) {
@@ -460,6 +447,20 @@ public class BeamEntity extends Entity {
                 }
             }
         }
+    }
+
+    private void spawnHitParticles(LivingEntity target) {
+        if (!(this.level() instanceof ServerLevel serverLevel) || totalLifeTicks % 4 != 0) {
+            return;
+        }
+
+        serverLevel.sendParticles(
+                ModParticles.ENERGY_SPARK.get(),
+                target.getX(), target.getY() + target.getBbHeight() * 0.5, target.getZ(),
+                5,
+                target.getBbWidth() * 0.35, target.getBbHeight() * 0.25, target.getBbWidth() * 0.35,
+                0.08
+        );
     }
 
     private void applyCooldownToOwner() {
@@ -493,7 +494,8 @@ public class BeamEntity extends Entity {
     }
 
     public Mode getMode() {
-        return mode;
+        int ordinal = entityData.get(MODE);
+        return ordinal >= 0 && ordinal < Mode.values().length ? Mode.values()[ordinal] : Mode.BOMB;
     }
 
     public UUID getOwnerUUID() {
@@ -513,6 +515,7 @@ public class BeamEntity extends Entity {
     @Override
     protected void defineSynchedData() {
         this.entityData.define(PHASE, Phase.CHARGING.ordinal());
+        this.entityData.define(MODE, Mode.BOMB.ordinal());
         this.entityData.define(RADIUS, (float) Config.getBeamRadius());
         this.entityData.define(TOTAL_TICKS, 0);
         this.entityData.define(PHASE_TIMER, 0);
