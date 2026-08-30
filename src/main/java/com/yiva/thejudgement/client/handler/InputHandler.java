@@ -67,8 +67,8 @@ public class InputHandler {
                 } else {
 
                     // 射线检测，忽略流体
-                    double maxRange = Config.getDirectBombMaxRange();
-                    HitResult hitResult = player.pick(maxRange, 1.0F, false);
+                    double targetRange = Config.getBombTargetMaxRange();
+                    HitResult hitResult = player.pick(targetRange, 1.0F, false);
                     if (hitResult instanceof BlockHitResult blockHit) {
                         BlockPos blockPos = blockHit.getBlockPos();
                         Vec3 core = new Vec3(blockPos.getX() + 0.5, blockPos.getY() - 1.0, blockPos.getZ() + 0.5);
@@ -144,16 +144,9 @@ public class InputHandler {
         }
 
         if (leftCharging && leftMode == BeamEntity.Mode.BOMB) {
-            Vec3 start = player.getEyePosition(1.0f);
-            Vec3 look = player.getLookAngle();
-            double maxRange = Config.getDirectBombMaxRange();
-            Vec3 end = start.add(look.scale(maxRange));
-
-            var hitOpt = BeamMathHelper.findEntityOnLine(mc.level, start, end, player);
-            if (hitOpt.isPresent()) {
-                Vec3 target = hitOpt.get(); // 已经是脚底取整坐标
-                ModMessages.sendToServer(BeamControlC2SPacket.updateCharge(BeamEntity.Mode.BOMB, null, target, player.getUUID()));
-            }
+            // 只通知服务端更新；目标检测和坐标计算由服务端完成。
+            ModMessages.sendToServer(BeamControlC2SPacket.updateCharge(
+                    BeamEntity.Mode.BOMB, null, null, player.getUUID()));
         }
 
         // 右键扫射模式更新

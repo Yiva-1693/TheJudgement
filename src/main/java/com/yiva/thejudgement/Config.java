@@ -41,7 +41,7 @@ public class Config {
         public final ForgeConfigSpec.DoubleValue bombSphereInitRadius; // 瞄准球初始半径
         public final ForgeConfigSpec.DoubleValue bombSphereGrowRate;   // 瞄准球每秒增长半径
         public final ForgeConfigSpec.DoubleValue bombMaxChargeTime;    // 最大蓄力时间（超时自动取消）
-        public final ForgeConfigSpec.DoubleValue directBombMaxRange;
+        public final ForgeConfigSpec.DoubleValue bombTargetMaxRange;
 
         // ---------- 右键扫射模式 ----------
         public final ForgeConfigSpec.DoubleValue sweepCircleRadius;    // 水平参考圆半径
@@ -81,8 +81,9 @@ public class Config {
             bombSphereInitRadius = builder
                     .comment("轰炸模式瞄准球初始半径（格）")
                     .defineInRange("bombSphereInitRadius", 5.0, 1.0, 20.0);
-            directBombMaxRange = builder
-                    .comment("非潜行左键直接轰炸模式的最大选取距离（格）")
+            bombTargetMaxRange = builder
+                    .comment("左键轰炸模式的最大选取和追踪距离（格）")
+                    // 保留旧配置键，避免已有 TOML 中的自定义值失效。
                     .defineInRange("directBombMaxRange", 150.0, 8.0, 256.0);
             bombSphereGrowRate = builder
                     .comment("轰炸模式瞄准球每秒半径增长率（格/秒）")
@@ -142,7 +143,7 @@ public class Config {
     public static double getSweepFireSpeed() { return COMMON.sweepFireSpeed.get(); }
     public static double getSweepMinDistance() { return COMMON.sweepMinDistance.get(); }
     public static int getCooldown() { return COMMON.cooldownSeconds.get(); }
-    public static double getDirectBombMaxRange() { return COMMON.directBombMaxRange.get(); }
+    public static double getBombTargetMaxRange() { return COMMON.bombTargetMaxRange.get(); }
 
     /**
      * Converts a configured speed in blocks per second to movement per game tick.

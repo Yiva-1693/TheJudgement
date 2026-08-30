@@ -1,7 +1,5 @@
 package com.yiva.thejudgement.util;
 
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.Vec3;
 import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Optional;
@@ -151,7 +149,11 @@ public class BeamMathHelper {
 
         if (closest != null) {
             Vec3 pos = closest.position();
-            return Optional.of(new Vec3(Math.floor(pos.x), Math.floor(pos.y), Math.floor(pos.z)));
+            return Optional.of(new Vec3(
+                    Math.floor(pos.x) + 0.5,
+                    Math.floor(pos.y),
+                    Math.floor(pos.z) + 0.5
+            ));
         }
         return Optional.empty();
     }

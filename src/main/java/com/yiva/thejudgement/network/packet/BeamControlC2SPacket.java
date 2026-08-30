@@ -137,7 +137,7 @@ public class BeamControlC2SPacket {
                         Vec3 horizontalDir = BeamMathHelper.getHorizontalDirection(player.getLookAngle());
                         fixedTarget = startCenter.add(horizontalDir.scale(Config.getSweepCircleRadius()));
                     } else {
-                        HitResult hitResult = player.pick(Config.getDirectBombMaxRange(), 1.0F, false);
+                        HitResult hitResult = player.pick(Config.getBombTargetMaxRange(), 1.0F, false);
                         if (!(hitResult instanceof BlockHitResult blockHit)) return;
                         BlockPos blockPos = blockHit.getBlockPos();
                         startCenter = new Vec3(blockPos.getX() + 0.5, blockPos.getY() - 1.0, blockPos.getZ() + 0.5);
@@ -176,8 +176,10 @@ public class BeamControlC2SPacket {
                         return;
                     }
                     if (mode == BeamEntity.Mode.BOMB) {
-                        // 潜行左键：客户端发送生物脚底坐标作为目标
-                        beam.setFixedTargetPos(new Vec3(targetX, targetY, targetZ));
+                        Vec3 start = player.getEyePosition(1.0F);
+                        Vec3 end = start.add(player.getLookAngle().scale(Config.getBombTargetMaxRange()));
+                        BeamMathHelper.findEntityOnLine(level, start, end, player)
+                                .ifPresent(beam::setFixedTargetPos);
                     } else if (mode == BeamEntity.Mode.SWEEP) {
                         Vec3 horizontalDir = BeamMathHelper.getHorizontalDirection(player.getLookAngle());
                         Vec3 horizontalTarget = player.position().add(horizontalDir.scale(Config.getSweepCircleRadius()));

@@ -20,7 +20,7 @@ public class ModEntities {
             ENTITIES.register("beam",
                     () -> EntityType.Builder.<BeamEntity>of(BeamEntity::new, MobCategory.MISC)
                             .sized(3.0f, 40.0f)              // 碰撞箱：直径3格，高40格（视觉参考，实际用数学碰撞）
-                            .setTrackingRange(64)            // 客户端同步距离（格）
+                            .setTrackingRange(320)           // 覆盖最大256格选取距离并预留视觉范围
                             .setUpdateInterval(1)            // 每 tick 同步一次位置
                             .setShouldReceiveVelocityUpdates(false) // 不需要接收速度更新
                             .build(ResourceLocation.bySeparator("thejudgement:beam", ':').toString())            );
