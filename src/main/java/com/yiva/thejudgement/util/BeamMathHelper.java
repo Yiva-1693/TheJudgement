@@ -1,8 +1,17 @@
 package com.yiva.thejudgement.util;
 
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import javax.annotation.Nullable;
+import java.util.List;
 import java.util.Optional;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 
 public class BeamMathHelper {
 
@@ -14,6 +23,7 @@ public class BeamMathHelper {
      * @param radius 球体半径
      * @return 交点坐标，若无交点则返回空 Optional
      */
+
     public static Optional<Vec3> intersectRayWithSphere(Vec3 origin, Vec3 direction, Vec3 sphereCenter, double radius) {
         Vec3 oc = origin.subtract(sphereCenter);
         double a = direction.dot(direction);
@@ -115,5 +125,34 @@ public class BeamMathHelper {
      */
     public static Vec3 getBlockPosFromVec3(Vec3 pos) {
         return new Vec3(Math.floor(pos.x), Math.floor(pos.y), Math.floor(pos.z));
+    }
+    public static Optional<Vec3> findEntityOnLine(Level level, Vec3 start, Vec3 end, LivingEntity exclude) {
+        // 1. 检测方块，得到方块碰撞距离
+        BlockHitResult blockHit = level.clip(new ClipContext(start, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, exclude));
+        double blockDist = blockHit.getType() == HitResult.Type.BLOCK ? blockHit.getLocation().distanceTo(start) : Double.MAX_VALUE;
+
+        // 2. 搜索射线附近的生物
+        AABB searchBox = new AABB(start, end).inflate(1.0);
+        List<LivingEntity> entities = level.getEntitiesOfClass(LivingEntity.class, searchBox, e -> e != exclude && e.isAlive());
+
+        LivingEntity closest = null;
+        double closestDist = blockDist; // 只有生物距离小于方块距离才有效
+
+        for (LivingEntity entity : entities) {
+            Optional<Vec3> hit = entity.getBoundingBox().inflate(0.1).clip(start, end);
+            if (hit.isPresent()) {
+                double dist = hit.get().distanceTo(start);
+                if (dist < closestDist) {
+                    closest = entity;
+                    closestDist = dist;
+                }
+            }
+        }
+
+        if (closest != null) {
+            Vec3 pos = closest.position();
+            return Optional.of(new Vec3(Math.floor(pos.x), Math.floor(pos.y), Math.floor(pos.z)));
+        }
+        return Optional.empty();
     }
 }

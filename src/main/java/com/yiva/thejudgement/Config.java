@@ -37,6 +37,7 @@ public class Config {
         public final ForgeConfigSpec.DoubleValue dissipateTime;       // 第三阶段消散时长
 
         // ---------- 左键轰炸模式 ----------
+        public final ForgeConfigSpec.DoubleValue chaseSpeed; // 潜行左键追踪生物速度（格/秒）
         public final ForgeConfigSpec.DoubleValue bombSphereInitRadius; // 瞄准球初始半径
         public final ForgeConfigSpec.DoubleValue bombSphereGrowRate;   // 瞄准球每秒增长半径
         public final ForgeConfigSpec.DoubleValue bombMaxChargeTime;    // 最大蓄力时间（超时自动取消）
@@ -58,7 +59,7 @@ public class Config {
                     .defineInRange("beamRadius", 3.0, 0.5, 10.0);
             beamHeight = builder
                     .comment("光柱总高度（格）")
-                    .defineInRange("beamHeight", 40.0, 10.0, 100.0);
+                    .defineInRange("beamHeight", 60.0, 10.0, 100.0);
             baseDamagePerTick = builder
                     .comment("第二阶段每tick基础伤害（生命值）")
                     .defineInRange("baseDamagePerTick", 30, 1, 100);
@@ -86,6 +87,9 @@ public class Config {
             bombSphereGrowRate = builder
                     .comment("轰炸模式瞄准球每秒半径增长率（格/秒）")
                     .defineInRange("bombSphereGrowRate", 12.0, 1.0, 50.0);
+            chaseSpeed = builder
+                    .comment("潜行左键追踪生物移动速度（格/秒）")
+                    .defineInRange("chaseSpeed", 50.0, 1.0, 60.0);
             bombMaxChargeTime = builder
                     .comment("轰炸模式最大蓄力时间（秒），超时自动取消")
                     .defineInRange("bombMaxChargeTime", 4.0, 2.0, 15.0);
@@ -132,6 +136,7 @@ public class Config {
     public static double getBombInitRadius() { return COMMON.bombSphereInitRadius.get(); }
     public static double getBombGrowRate() { return COMMON.bombSphereGrowRate.get(); }
     public static double getBombMaxCharge() { return COMMON.bombMaxChargeTime.get(); }
+    public static double getChaseSpeed() { return COMMON.chaseSpeed.get(); }
     public static double getSweepCircleRadius() { return COMMON.sweepCircleRadius.get(); }
     public static double getSweepTrackSpeed() { return COMMON.sweepTrackSpeed.get(); }
     public static double getSweepFireSpeed() { return COMMON.sweepFireSpeed.get(); }
