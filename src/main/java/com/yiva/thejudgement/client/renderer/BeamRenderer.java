@@ -1,10 +1,10 @@
 package com.yiva.thejudgement.client.renderer;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.yiva.thejudgement.Config;
 import com.yiva.thejudgement.entity.BeamEntity;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
@@ -60,7 +60,8 @@ public class BeamRenderer extends EntityRenderer<BeamEntity> {
     private static final float RIFT_RADIUS = 15.0f;
     private static final float PORTAL_RADIUS = 8.0f;
     private static final float AIM_MARKER_RADIUS = 3f;
-    private static final int SEGMENTS = 8;
+    private static final double RIFT_HEIGHT_OFFSET = 0.02;
+    private static final double PORTAL_HEIGHT_OFFSET = 0.04;
 
     private static final int RIFT_GROW_INTERVAL = 12;
     private static final int RIFT_IDLE_INTERVAL = 3;
@@ -92,105 +93,134 @@ public class BeamRenderer extends EntityRenderer<BeamEntity> {
                 renderAimMarker(entity, center, partialTicks, poseStack, buffer, fullBright);
                 break;
             case FIRING:
-                if (radius > 0.01) {
-                    renderBeam(entity, center, radius, height, poseStack, buffer, fullBright);
-                }
                 renderRiftIdle(entity, center, partialTicks, poseStack, buffer, fullBright);
                 renderPortalIdle(entity, center, partialTicks, poseStack, buffer, fullBright);
+                if (radius > 0.01) {
+                    renderBeam(entity, center, radius, height, partialTicks, poseStack, buffer, fullBright);
+                }
                 break;
             case DISSIPATING:
-                if (radius > 0.01) {
-                    renderBeam(entity, center, radius, height, poseStack, buffer, fullBright);
-                }
                 renderRiftReverseGrow(entity, center, partialTicks, poseStack, buffer, fullBright);
                 renderPortalReverseGrow(entity, center, partialTicks, poseStack, buffer, fullBright);
+                if (radius > 0.01) {
+                    renderBeam(entity, center, radius, height, partialTicks, poseStack, buffer, fullBright);
+                }
                 break;
         }
 
         super.render(entity, entityYaw, partialTicks, poseStack, buffer, packedLight);
     }
 
-    private void renderCylinderLayer(MultiBufferSource buffer, PoseStack poseStack,
-                                     float bottomY, float topY, double radius, float angleStep,
-                                     ResourceLocation texture, int packedLight, float alpha) {
-        RenderType renderType = RenderType.entityTranslucentEmissive(texture);
+    private void renderBillboardBand(MultiBufferSource buffer, PoseStack poseStack,
+                                     float bottomY, float topY, float normalX, float normalZ,
+                                     float tangentX, float tangentZ, double innerRadius, double outerRadius,
+                                     ResourceLocation texture, int packedLight, float alpha,
+                                     boolean translucent) {
+        RenderType renderType = RenderType.beaconBeam(texture, translucent);
         VertexConsumer consumer = buffer.getBuffer(renderType);
         Matrix4f pose = poseStack.last().pose();
 
-        for (int i = 0; i < SEGMENTS; i++) {
-            float angle1 = i * angleStep;
-            float angle2 = (i + 1) * angleStep;
-            float cos1 = (float) Math.cos(angle1);
-            float sin1 = (float) Math.sin(angle1);
-            float cos2 = (float) Math.cos(angle2);
-            float sin2 = (float) Math.sin(angle2);
-            float x1 = (float) (radius * cos1);
-            float z1 = (float) (radius * sin1);
-            float x2 = (float) (radius * cos2);
-            float z2 = (float) (radius * sin2);
-
-            float u1 = (float) i / SEGMENTS;
-            float u2 = (float) (i + 1) / SEGMENTS;
-
-            // 纯白调制，仅保留透明度
-            consumer.vertex(pose, x1, bottomY, z1)
-                    .color(1f, 1f, 1f, alpha)
-                    .uv(u1, 1)
-                     .overlayCoords(OverlayTexture.NO_OVERLAY)
-                    .uv2(packedLight)
-                    .normal(cos1, 0, sin1)
-                    .endVertex();
-            consumer.vertex(pose, x2, bottomY, z2)
-                    .color(1f, 1f, 1f, alpha)
-                    .uv(u2, 1)
-                     .overlayCoords(OverlayTexture.NO_OVERLAY)
-                    .uv2(packedLight)
-                    .normal(cos2, 0, sin2)
-                    .endVertex();
-            consumer.vertex(pose, x2, topY, z2)
-                    .color(1f, 1f, 1f, alpha)
-                    .uv(u2, 0)
-                     .overlayCoords(OverlayTexture.NO_OVERLAY)
-                    .uv2(packedLight)
-                    .normal(cos2, 0, sin2)
-                    .endVertex();
-            consumer.vertex(pose, x1, topY, z1)
-                    .color(1f, 1f, 1f, alpha)
-                    .uv(u1, 0)
-                     .overlayCoords(OverlayTexture.NO_OVERLAY)
-                    .uv2(packedLight)
-                    .normal(cos1, 0, sin1)
-                    .endVertex();
+        if (innerRadius <= 0) {
+            addBillboardQuad(consumer, pose, bottomY, topY, normalX, normalZ, tangentX, tangentZ,
+                    -outerRadius, outerRadius, packedLight, alpha);
+        } else {
+            addBillboardQuad(consumer, pose, bottomY, topY, normalX, normalZ, tangentX, tangentZ,
+                    -outerRadius, -innerRadius, packedLight, alpha);
+            addBillboardQuad(consumer, pose, bottomY, topY, normalX, normalZ, tangentX, tangentZ,
+                    innerRadius, outerRadius, packedLight, alpha);
         }
     }
 
+    private void addBillboardQuad(VertexConsumer consumer, Matrix4f pose,
+                                  float bottomY, float topY, float normalX, float normalZ,
+                                  float tangentX, float tangentZ, double fromRadius, double toRadius,
+                                  int packedLight, float alpha) {
+        float x1 = (float) (tangentX * fromRadius);
+        float z1 = (float) (tangentZ * fromRadius);
+        float x2 = (float) (tangentX * toRadius);
+        float z2 = (float) (tangentZ * toRadius);
+
+        consumer.vertex(pose, x1, bottomY, z1)
+                .color(1f, 1f, 1f, alpha)
+                .uv(0, 1)
+                .overlayCoords(OverlayTexture.NO_OVERLAY)
+                .uv2(packedLight)
+                .normal(normalX, 0, normalZ)
+                .endVertex();
+        consumer.vertex(pose, x2, bottomY, z2)
+                .color(1f, 1f, 1f, alpha)
+                .uv(1, 1)
+                .overlayCoords(OverlayTexture.NO_OVERLAY)
+                .uv2(packedLight)
+                .normal(normalX, 0, normalZ)
+                .endVertex();
+        consumer.vertex(pose, x2, topY, z2)
+                .color(1f, 1f, 1f, alpha)
+                .uv(1, 0)
+                .overlayCoords(OverlayTexture.NO_OVERLAY)
+                .uv2(packedLight)
+                .normal(normalX, 0, normalZ)
+                .endVertex();
+        consumer.vertex(pose, x1, topY, z1)
+                .color(1f, 1f, 1f, alpha)
+                .uv(0, 0)
+                .overlayCoords(OverlayTexture.NO_OVERLAY)
+                .uv2(packedLight)
+                .normal(normalX, 0, normalZ)
+                .endVertex();
+    }
+
     private void renderBeam(BeamEntity entity, Vec3 center, double radius, double height,
-                            PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
+                            float partialTicks, PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
         poseStack.pushPose();
         poseStack.translate(center.x - entity.getX(), center.y - entity.getY(), center.z - entity.getZ());
 
-        // 关闭深度写入，保证多层叠加时内层可见
-        RenderSystem.depthMask(false);
+        Vec3 cameraPos = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
+        double cameraX = cameraPos.x - center.x;
+        double cameraZ = cameraPos.z - center.z;
+        double horizontalLength = Math.sqrt(cameraX * cameraX + cameraZ * cameraZ);
+        if (horizontalLength < 1.0E-5) {
+            cameraX = 0;
+            cameraZ = 1;
+            horizontalLength = 1;
+        }
 
-        float bottomY = -(float) Config.getBeamHeight();
-        float topY = (float) Config.getBeamHeight();
-        float angleStep = (float) (2 * Math.PI / SEGMENTS);
+        float normalX = (float) (cameraX / horizontalLength);
+        float normalZ = (float) (cameraZ / horizontalLength);
+        float tangentX = normalZ;
+        float tangentZ = -normalX;
 
-        // ========== 第一层：外层光晕（半径100%，深紫色，透明度0.15） ==========
-        renderCylinderLayer(buffer, poseStack, bottomY, topY, radius, angleStep,
-                SURFACE_TEXTURE, packedLight, 0.20f);
+        double visualRadius = getVisualRadius(entity, radius, partialTicks);
+        float bottomY = -(float) height;
+        float topY = (float) height;
 
-        // ========== 第二层：主能量层（半径65%，亮紫色，透明度0.85） ==========
-        renderCylinderLayer(buffer, poseStack, bottomY, topY, radius * 0.65, angleStep,
-                BEAM_TEXTURE, packedLight, 0.75f);
+        // 三层互不重叠，避免透明面重复混合产生圆柱明暗。
+        renderBillboardBand(buffer, poseStack, bottomY, topY, normalX, normalZ, tangentX, tangentZ,
+                visualRadius * 0.72, visualRadius, SURFACE_TEXTURE, packedLight, 0.75f, true);
 
-        // ========== 第三层：白色核心（半径20%，高亮白，透明度0.95） ==========
-        renderCylinderLayer(buffer, poseStack, bottomY, topY, radius * 0.20, angleStep,
-                WHITE_BEAM_TEXTURE, packedLight, 0.95f);
-        // 恢复深度写入
-        RenderSystem.depthMask(true);
+        renderBillboardBand(buffer, poseStack, bottomY, topY, normalX, normalZ, tangentX, tangentZ,
+                visualRadius * 0.36, visualRadius * 0.72, BEAM_TEXTURE, packedLight, 0.95f, true);
+
+        renderBillboardBand(buffer, poseStack, bottomY, topY, normalX, normalZ, tangentX, tangentZ,
+                0, visualRadius * 0.36, WHITE_BEAM_TEXTURE, packedLight, 1.0f, false);
 
         poseStack.popPose();
+    }
+
+    private double getVisualRadius(BeamEntity entity, double radius, float partialTicks) {
+        double time = entity.getTotalLifeTicks() + partialTicks;
+        double jitter = Math.sin(time * 2.37 + entity.getId() * 0.71) * 0.025
+                + Math.sin(time * 4.91 + entity.getId() * 1.13) * 0.015
+                + Math.sin(time * 7.43 + entity.getId() * 0.37) * 0.01;
+
+        if (entity.getPhase() == BeamEntity.Phase.FIRING) {
+            double progress = Math.min(1.0, (entity.getPhaseTimer() + partialTicks) / 2.0);
+            double easedProgress = progress * progress * (3.0 - 2.0 * progress);
+            double burstScale = 2.2 + (1.0 - 2.2) * easedProgress;
+            return radius * (progress < 1.0 ? burstScale : 1.0 + jitter);
+        }
+
+        return radius * (1.0 + jitter);
     }
 
     private void renderRiftGrow(BeamEntity entity, Vec3 center, float partialTicks,
@@ -198,14 +228,17 @@ public class BeamRenderer extends EntityRenderer<BeamEntity> {
         int totalTicks = entity.getTotalLifeTicks();
         int idx = Math.min(totalTicks / RIFT_GROW_INTERVAL, 3);
         ResourceLocation tex = RIFT_GROW[idx];
-        renderHorizontalQuad(poseStack, buffer, entity, center, 40.0, RIFT_RADIUS, tex, packedLight, 1.0f, false);    }
+        renderHorizontalQuad(poseStack, buffer, entity, center,
+                Config.getBeamHeight() + RIFT_HEIGHT_OFFSET, RIFT_RADIUS, tex, packedLight, 1.0f, false);
+    }
 
     private void renderRiftIdle(BeamEntity entity, Vec3 center, float partialTicks,
                                 PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
         int totalTicks = entity.getTotalLifeTicks();
         int idx = (totalTicks / RIFT_IDLE_INTERVAL) % 4;
         ResourceLocation tex = RIFT_IDLE[idx];
-        renderHorizontalQuad(poseStack, buffer, entity, center, 40.0, RIFT_RADIUS, tex, packedLight, 1.0f, false);
+        renderHorizontalQuad(poseStack, buffer, entity, center,
+                Config.getBeamHeight() + RIFT_HEIGHT_OFFSET, RIFT_RADIUS, tex, packedLight, 1.0f, false);
     }
 
     private void renderRiftReverseGrow(BeamEntity entity, Vec3 center, float partialTicks,
@@ -217,14 +250,18 @@ public class BeamRenderer extends EntityRenderer<BeamEntity> {
         int idx = totalFrames - 1 - (progress * totalFrames / duration);
         idx = Math.max(0, Math.min(totalFrames - 1, idx));
         ResourceLocation tex = RIFT_GROW[idx];
-        renderHorizontalQuad(poseStack, buffer, entity, center, 40.0, RIFT_RADIUS, tex, packedLight, 1.0f, false);    }
+        renderHorizontalQuad(poseStack, buffer, entity, center,
+                Config.getBeamHeight() + RIFT_HEIGHT_OFFSET, RIFT_RADIUS, tex, packedLight, 1.0f, false);
+    }
 
     private void renderPortalIdle(BeamEntity entity, Vec3 center, float partialTicks,
                                   PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
         int phaseTicks = entity.getPhaseTimer();
         int idx = (phaseTicks / PORTAL_IDLE_INTERVAL) % 4;
         ResourceLocation tex = PORTAL_IDLE[idx];
-        renderHorizontalQuad(poseStack, buffer, entity, center, 40.0, PORTAL_RADIUS, tex, packedLight, 1.0f, true);    }
+        renderHorizontalQuad(poseStack, buffer, entity, center,
+                Config.getBeamHeight() + PORTAL_HEIGHT_OFFSET, PORTAL_RADIUS, tex, packedLight, 1.0f, true);
+    }
 
     private void renderPortalReverseGrow(BeamEntity entity, Vec3 center, float partialTicks,
                                          PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
@@ -235,7 +272,9 @@ public class BeamRenderer extends EntityRenderer<BeamEntity> {
         int idx = totalFrames - 1 - (progress * totalFrames / duration);
         idx = Math.max(0, Math.min(totalFrames - 1, idx));
         ResourceLocation tex = PORTAL_GROW[idx];
-        renderHorizontalQuad(poseStack, buffer, entity, center, 40.0, PORTAL_RADIUS, tex, packedLight, 1.0f, true);    }
+        renderHorizontalQuad(poseStack, buffer, entity, center,
+                Config.getBeamHeight() + PORTAL_HEIGHT_OFFSET, PORTAL_RADIUS, tex, packedLight, 1.0f, true);
+    }
 
     private void renderAimMarker(BeamEntity entity, Vec3 center, float partialTicks,
                                  PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
