@@ -17,7 +17,7 @@ public class EnergySparkParticle extends TextureSheetParticle {
                                   SpriteSet spriteSet) {
         super(level, x, y, z, xSpeed, ySpeed, zSpeed);
         this.spriteSet = spriteSet;
-        this.baseSize = 0.12f + random.nextFloat() * 0.2f;
+        this.baseSize = 0.18f + random.nextFloat() * 0.27f;
         this.quadSize = baseSize;
         this.lifetime = 12 + random.nextInt(14);
         this.gravity = 0;

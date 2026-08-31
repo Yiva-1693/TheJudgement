@@ -29,6 +29,13 @@ public final class BeamParticleController {
 
     private static final double FULL_DISTANCE_SQR = 64.0 * 64.0;
     private static final double MAX_DISTANCE_SQR = 128.0 * 128.0;
+    private static final int FIRING_BURST_COUNT = 72;
+    private static final int EDGE_PARTICLES_PER_TICK = 10;
+    private static final int DIRECT_BOMB_EDGE_PARTICLES_PER_TICK = 12;
+    private static final int GROUND_IMPACT_PARTICLES_PER_TICK = 8;
+    private static final int SHOCKWAVE_PARTICLE_COUNT = 16;
+    private static final int DISSIPATING_BURST_COUNT = 42;
+    private static final int DISSIPATING_PARTICLES_PER_TICK = 6;
     private static final Map<Integer, BeamVisualState> ACTIVE_BEAMS = new HashMap<>();
     private static ClientLevel activeLevel;
 
@@ -100,6 +107,8 @@ public final class BeamParticleController {
             case CHARGING, CHARGED_WAIT -> spawnChargingParticles(level, center, scale);
             case FIRING -> {
                 spawnBeamEdgeParticles(level, beam, center, scale);
+                spawnGroundImpactParticles(level, beam, center, scale);
+                spawnShockwaveRing(level, beam, center, scale);
                 spawnMovementTrail(level, beam, state.center, center, scale);
             }
             case DISSIPATING -> {
@@ -145,13 +154,21 @@ public final class BeamParticleController {
 
     private static void spawnFiringBurst(ClientLevel level, Vec3 center, double scale) {
         RandomSource random = level.random;
-        int count = scaledCount(level, 28, scale);
+        int count = scaledCount(level, FIRING_BURST_COUNT, scale);
         double height = Config.getBeamHeight();
         for (int i = 0; i < count; i++) {
             double angle = random.nextDouble() * Math.PI * 2.0;
             double speed = 0.08 + random.nextDouble() * 0.2;
-            double y = i % 2 == 0 ? center.y : center.y + height;
-            level.addParticle(ModParticles.ENERGY_SPARK.get(), center.x, y, center.z,
+            double bandHeight = switch (i % 3) {
+                case 0 -> 0.15;
+                case 1 -> height * 0.5;
+                default -> height;
+            };
+            double sourceRadius = random.nextDouble() * Config.getBeamRadius() * 0.45;
+            level.addParticle(ModParticles.ENERGY_SPARK.get(),
+                    center.x + Math.cos(angle) * sourceRadius,
+                    center.y + bandHeight + (random.nextDouble() - 0.5) * 1.2,
+                    center.z + Math.sin(angle) * sourceRadius,
                     Math.cos(angle) * speed,
                     (random.nextDouble() - 0.25) * speed,
                     Math.sin(angle) * speed);
@@ -161,20 +178,70 @@ public final class BeamParticleController {
     private static void spawnBeamEdgeParticles(ClientLevel level, BeamEntity beam,
                                                Vec3 center, double scale) {
         RandomSource random = level.random;
-        int baseCount = beam.getMode() == BeamEntity.Mode.DIRECT_BOMB ? 5 : 4;
+        int baseCount = beam.getMode() == BeamEntity.Mode.DIRECT_BOMB
+                ? DIRECT_BOMB_EDGE_PARTICLES_PER_TICK
+                : EDGE_PARTICLES_PER_TICK;
         int count = scaledCount(level, baseCount, scale);
         double radius = Math.max(0.25, beam.getCurrentRadius());
         double height = Config.getBeamHeight();
         for (int i = 0; i < count; i++) {
             double angle = random.nextDouble() * Math.PI * 2.0;
             double edge = radius * (0.72 + random.nextDouble() * 0.35);
-            double y = center.y - height + random.nextDouble() * height * 2.0;
+            double y = center.y + random.nextDouble() * height;
             double outward = 0.015 + random.nextDouble() * 0.045;
             level.addParticle(ModParticles.ENERGY_SPARK.get(),
                     center.x + Math.cos(angle) * edge, y, center.z + Math.sin(angle) * edge,
                     Math.cos(angle) * outward,
                     (random.nextDouble() - 0.5) * 0.05,
                     Math.sin(angle) * outward);
+        }
+    }
+
+    private static void spawnGroundImpactParticles(ClientLevel level, BeamEntity beam,
+                                                   Vec3 center, double scale) {
+        RandomSource random = level.random;
+        int count = scaledCount(level, GROUND_IMPACT_PARTICLES_PER_TICK, scale);
+        double radius = Math.max(0.5, beam.getCurrentRadius());
+        for (int i = 0; i < count; i++) {
+            double angle = random.nextDouble() * Math.PI * 2.0;
+            double distance = radius * (0.45 + random.nextDouble() * 0.75);
+            double speed = 0.08 + random.nextDouble() * 0.16;
+            double x = center.x + Math.cos(angle) * distance;
+            double z = center.z + Math.sin(angle) * distance;
+            if (i % 4 == 0) {
+                level.addParticle(ModParticles.ABYSS_MOTE.get(), x, center.y + 0.12, z,
+                        Math.cos(angle) * speed * 0.45,
+                        0.025 + random.nextDouble() * 0.055,
+                        Math.sin(angle) * speed * 0.45);
+            } else {
+                level.addParticle(ModParticles.ENERGY_SPARK.get(), x, center.y + 0.12, z,
+                        Math.cos(angle) * speed,
+                        0.05 + random.nextDouble() * 0.14,
+                        Math.sin(angle) * speed);
+            }
+        }
+    }
+
+    private static void spawnShockwaveRing(ClientLevel level, BeamEntity beam,
+                                           Vec3 center, double scale) {
+        if ((level.getGameTime() + beam.getId()) % 4 != 0) {
+            return;
+        }
+
+        RandomSource random = level.random;
+        int count = scaledCount(level, SHOCKWAVE_PARTICLE_COUNT, scale);
+        double radius = Math.max(0.75, beam.getCurrentRadius() * 0.95);
+        double angleOffset = random.nextDouble() * Math.PI * 2.0;
+        for (int i = 0; i < count; i++) {
+            double angle = angleOffset + Math.PI * 2.0 * i / Math.max(1, count);
+            double speed = 0.11 + random.nextDouble() * 0.06;
+            level.addParticle(ModParticles.ENERGY_SPARK.get(),
+                    center.x + Math.cos(angle) * radius,
+                    center.y + 0.16 + random.nextDouble() * 0.08,
+                    center.z + Math.sin(angle) * radius,
+                    Math.cos(angle) * speed,
+                    0.025 + random.nextDouble() * 0.035,
+                    Math.sin(angle) * speed);
         }
     }
 
@@ -186,7 +253,7 @@ public final class BeamParticleController {
         }
 
         RandomSource random = level.random;
-        int baseCount = beam.getMode() == BeamEntity.Mode.SWEEP ? 3 : 1;
+        int baseCount = beam.getMode() == BeamEntity.Mode.SWEEP ? 6 : 2;
         int count = scaledCount(level, baseCount, scale);
         double radius = Math.max(0.3, beam.getCurrentRadius());
         double height = Config.getBeamHeight();
@@ -196,7 +263,7 @@ public final class BeamParticleController {
             double spread = random.nextDouble() * radius;
             level.addParticle(ModParticles.ABYSS_MOTE.get(),
                     previous.x + Math.cos(angle) * spread,
-                    center.y - height + random.nextDouble() * height * 2.0,
+                    center.y + random.nextDouble() * height,
                     previous.z + Math.sin(angle) * spread,
                     -direction.x * 0.035,
                     (random.nextDouble() - 0.5) * 0.02,
@@ -206,15 +273,15 @@ public final class BeamParticleController {
 
     private static void spawnDissipatingBurst(ClientLevel level, Vec3 center, double scale) {
         RandomSource random = level.random;
-        int count = scaledCount(level, 18, scale);
+        int count = scaledCount(level, DISSIPATING_BURST_COUNT, scale);
         double height = Config.getBeamHeight();
         for (int i = 0; i < count; i++) {
             double angle = random.nextDouble() * Math.PI * 2.0;
             double speed = 0.06 + random.nextDouble() * 0.16;
             level.addParticle(ModParticles.RIFT_SHARD.get(),
-                    center.x + (random.nextDouble() - 0.5) * 2.0,
-                    center.y + height + random.nextDouble() * 0.8,
-                    center.z + (random.nextDouble() - 0.5) * 2.0,
+                    center.x + (random.nextDouble() - 0.5) * Config.getBeamRadius() * 1.6,
+                    center.y + random.nextDouble() * height,
+                    center.z + (random.nextDouble() - 0.5) * Config.getBeamRadius() * 1.6,
                     Math.cos(angle) * speed,
                     0.05 + random.nextDouble() * 0.12,
                     Math.sin(angle) * speed);
@@ -224,7 +291,7 @@ public final class BeamParticleController {
     private static void spawnDissipatingParticles(ClientLevel level, BeamEntity beam,
                                                   Vec3 center, double scale) {
         RandomSource random = level.random;
-        int count = scaledCount(level, 3, scale);
+        int count = scaledCount(level, DISSIPATING_PARTICLES_PER_TICK, scale);
         double radius = Math.max(0.4, beam.getCurrentRadius());
         double height = Config.getBeamHeight();
         for (int i = 0; i < count; i++) {
@@ -233,7 +300,7 @@ public final class BeamParticleController {
             double outward = 0.01 + random.nextDouble() * 0.035;
             level.addParticle(ModParticles.ABYSS_MOTE.get(),
                     center.x + Math.cos(angle) * distance,
-                    center.y - height + random.nextDouble() * height * 2.0,
+                    center.y + random.nextDouble() * height,
                     center.z + Math.sin(angle) * distance,
                     Math.cos(angle) * outward,
                     0.015 + random.nextDouble() * 0.025,
