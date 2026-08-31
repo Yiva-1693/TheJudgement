@@ -28,7 +28,7 @@ public class Config {
 
         // ---------- 激光本体基础属性 ----------
         public final ForgeConfigSpec.DoubleValue beamRadius;          // 光柱半径（格）
-        public final ForgeConfigSpec.DoubleValue beamHeight;          // 光柱总高度（格）
+        public final ForgeConfigSpec.DoubleValue beamHeight;          // 光柱中点到顶部裂隙的距离（格）
         public final ForgeConfigSpec.IntValue baseDamagePerTick;      // 第二阶段每tick伤害（生命值）
 
         // ---------- 三阶段时间配置（单位：秒） ----------
@@ -58,8 +58,8 @@ public class Config {
                     .comment("光柱半径（格）")
                     .defineInRange("beamRadius", 3.0, 0.5, 10.0);
             beamHeight = builder
-                    .comment("光柱总高度（格）")
-                    .defineInRange("beamHeight", 60.0, 10.0, 100.0);
+                    .comment("光柱半高：从光柱中点到顶部裂隙的距离（格）")
+                    .defineInRange("beamHeight", 80.0, 10.0, 100.0);
             baseDamagePerTick = builder
                     .comment("第二阶段每tick基础伤害（生命值）")
                     .defineInRange("baseDamagePerTick", 30, 1, 100);

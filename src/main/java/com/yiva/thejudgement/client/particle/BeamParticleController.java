@@ -9,6 +9,9 @@ import net.minecraft.client.ParticleStatus;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.TickEvent;
@@ -32,8 +35,6 @@ public final class BeamParticleController {
     private static final int FIRING_BURST_COUNT = 72;
     private static final int EDGE_PARTICLES_PER_TICK = 10;
     private static final int DIRECT_BOMB_EDGE_PARTICLES_PER_TICK = 12;
-    private static final int GROUND_IMPACT_PARTICLES_PER_TICK = 8;
-    private static final int SHOCKWAVE_PARTICLE_COUNT = 16;
     private static final int DISSIPATING_BURST_COUNT = 42;
     private static final int DISSIPATING_PARTICLES_PER_TICK = 6;
     private static final Map<Integer, BeamVisualState> ACTIVE_BEAMS = new HashMap<>();
@@ -69,9 +70,10 @@ public final class BeamParticleController {
             seen.add(id);
             Vec3 center = beam.position();
             double scale = particleScale(minecraft, center);
+            Vec3 impact = findImpactPosition(level, beam, center);
             BeamVisualState state = ACTIVE_BEAMS.get(id);
             if (state == null) {
-                state = new BeamVisualState(beam.getPhase(), center, level.getGameTime());
+                state = new BeamVisualState(beam.getPhase(), center, impact, level.getGameTime());
                 ACTIVE_BEAMS.put(id, state);
                 if (beam.getPhase() == BeamEntity.Phase.FIRING && scale > 0) {
                     spawnFiringBurst(level, center, scale);
@@ -83,10 +85,31 @@ public final class BeamParticleController {
             if (scale > 0) {
                 spawnContinuousParticles(level, beam, state, center, scale);
             }
-            state.update(beam, center, level.getGameTime());
+            state.update(beam, center, impact, level.getGameTime());
         }
 
         removeMissingBeams(level, seen, minecraft.player.position());
+    }
+
+    public static Vec3 getImpactPosition(BeamEntity beam) {
+        BeamVisualState state = ACTIVE_BEAMS.get(beam.getId());
+        return state != null ? state.impact : beam.position();
+    }
+
+    private static Vec3 findImpactPosition(ClientLevel level, BeamEntity beam, Vec3 center) {
+        Vec3 source = center.add(0, Config.getBeamHeight() + 0.25, 0);
+        Vec3 end = new Vec3(center.x, level.getMinBuildHeight() - 1.0, center.z);
+        BlockHitResult hit = level.clip(new ClipContext(
+                source,
+                end,
+                ClipContext.Block.COLLIDER,
+                ClipContext.Fluid.ANY,
+                beam
+        ));
+        if (hit.getType() == HitResult.Type.BLOCK) {
+            return hit.getLocation().add(0, 0.03, 0);
+        }
+        return center;
     }
 
     private static void spawnPhaseTransition(ClientLevel level, BeamEntity.Phase current,
@@ -107,8 +130,6 @@ public final class BeamParticleController {
             case CHARGING, CHARGED_WAIT -> spawnChargingParticles(level, center, scale);
             case FIRING -> {
                 spawnBeamEdgeParticles(level, beam, center, scale);
-                spawnGroundImpactParticles(level, beam, center, scale);
-                spawnShockwaveRing(level, beam, center, scale);
                 spawnMovementTrail(level, beam, state.center, center, scale);
             }
             case DISSIPATING -> {
@@ -160,8 +181,8 @@ public final class BeamParticleController {
             double angle = random.nextDouble() * Math.PI * 2.0;
             double speed = 0.08 + random.nextDouble() * 0.2;
             double bandHeight = switch (i % 3) {
-                case 0 -> 0.15;
-                case 1 -> height * 0.5;
+                case 0 -> height * 0.25;
+                case 1 -> height * 0.6;
                 default -> height;
             };
             double sourceRadius = random.nextDouble() * Config.getBeamRadius() * 0.45;
@@ -194,54 +215,6 @@ public final class BeamParticleController {
                     Math.cos(angle) * outward,
                     (random.nextDouble() - 0.5) * 0.05,
                     Math.sin(angle) * outward);
-        }
-    }
-
-    private static void spawnGroundImpactParticles(ClientLevel level, BeamEntity beam,
-                                                   Vec3 center, double scale) {
-        RandomSource random = level.random;
-        int count = scaledCount(level, GROUND_IMPACT_PARTICLES_PER_TICK, scale);
-        double radius = Math.max(0.5, beam.getCurrentRadius());
-        for (int i = 0; i < count; i++) {
-            double angle = random.nextDouble() * Math.PI * 2.0;
-            double distance = radius * (0.45 + random.nextDouble() * 0.75);
-            double speed = 0.08 + random.nextDouble() * 0.16;
-            double x = center.x + Math.cos(angle) * distance;
-            double z = center.z + Math.sin(angle) * distance;
-            if (i % 4 == 0) {
-                level.addParticle(ModParticles.ABYSS_MOTE.get(), x, center.y + 0.12, z,
-                        Math.cos(angle) * speed * 0.45,
-                        0.025 + random.nextDouble() * 0.055,
-                        Math.sin(angle) * speed * 0.45);
-            } else {
-                level.addParticle(ModParticles.ENERGY_SPARK.get(), x, center.y + 0.12, z,
-                        Math.cos(angle) * speed,
-                        0.05 + random.nextDouble() * 0.14,
-                        Math.sin(angle) * speed);
-            }
-        }
-    }
-
-    private static void spawnShockwaveRing(ClientLevel level, BeamEntity beam,
-                                           Vec3 center, double scale) {
-        if ((level.getGameTime() + beam.getId()) % 4 != 0) {
-            return;
-        }
-
-        RandomSource random = level.random;
-        int count = scaledCount(level, SHOCKWAVE_PARTICLE_COUNT, scale);
-        double radius = Math.max(0.75, beam.getCurrentRadius() * 0.95);
-        double angleOffset = random.nextDouble() * Math.PI * 2.0;
-        for (int i = 0; i < count; i++) {
-            double angle = angleOffset + Math.PI * 2.0 * i / Math.max(1, count);
-            double speed = 0.11 + random.nextDouble() * 0.06;
-            level.addParticle(ModParticles.ENERGY_SPARK.get(),
-                    center.x + Math.cos(angle) * radius,
-                    center.y + 0.16 + random.nextDouble() * 0.08,
-                    center.z + Math.sin(angle) * radius,
-                    Math.cos(angle) * speed,
-                    0.025 + random.nextDouble() * 0.035,
-                    Math.sin(angle) * speed);
         }
     }
 
@@ -373,17 +346,20 @@ public final class BeamParticleController {
     private static final class BeamVisualState {
         private BeamEntity.Phase phase;
         private Vec3 center;
+        private Vec3 impact;
         private long lastSeen;
 
-        private BeamVisualState(BeamEntity.Phase phase, Vec3 center, long lastSeen) {
+        private BeamVisualState(BeamEntity.Phase phase, Vec3 center, Vec3 impact, long lastSeen) {
             this.phase = phase;
             this.center = center;
+            this.impact = impact;
             this.lastSeen = lastSeen;
         }
 
-        private void update(BeamEntity beam, Vec3 center, long lastSeen) {
+        private void update(BeamEntity beam, Vec3 center, Vec3 impact, long lastSeen) {
             this.phase = beam.getPhase();
             this.center = center;
+            this.impact = impact;
             this.lastSeen = lastSeen;
         }
     }

@@ -6,6 +6,7 @@ Forge 生成的实际配置文件是 `config/thejudgement-common.toml`。单人�
 
 关键配置单位：
 
+- `beamHeight`：光柱半高，即从光柱中点到顶部裂隙的距离；默认 80 格，完整高度为 160 格。
 - `baseDamagePerTick`：每游戏 tick 的伤害值，1 点生命值等于半颗心。
 - `sweepTrackSpeed`：蓄力追踪速度，单位为格/秒。
 - `sweepFireSpeed`：发射和消散阶段速度，单位为格/秒。
