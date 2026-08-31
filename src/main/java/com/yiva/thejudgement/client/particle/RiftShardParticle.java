@@ -28,10 +28,10 @@ public class RiftShardParticle extends TextureSheetParticle {
         this.gravity = 0.045f;
         this.hasPhysics = true;
         this.friction = 0.94f;
-        this.rCol = 0.7f + random.nextFloat() * 0.25f;
-        this.gCol = 0.35f + random.nextFloat() * 0.3f;
-        this.bCol = 1.0f;
-        this.alpha = 1.0f;
+        this.rCol = 0.85f + random.nextFloat() * 0.15f;
+        this.gCol = 0.15f + random.nextFloat() * 0.2f;
+        this.bCol = 0.95f + random.nextFloat() * 0.05f;
+        this.alpha = 0.9f;
         this.xd = xSpeed;
         this.yd = ySpeed;
         this.zd = zSpeed;
@@ -50,7 +50,7 @@ public class RiftShardParticle extends TextureSheetParticle {
 
         float life = (float) this.age / this.lifetime;
         if (life > 0.55f) {
-            this.alpha = Math.max(0, (1.0f - life) / 0.45f);
+            this.alpha = 0.9f * Math.max(0, (1.0f - life) / 0.45f);
             this.quadSize = baseSize * (1.0f - (life - 0.55f) * 0.8f);
         }
     }

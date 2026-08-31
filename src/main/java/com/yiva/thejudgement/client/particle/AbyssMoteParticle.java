@@ -27,9 +27,9 @@ public class AbyssMoteParticle extends TextureSheetParticle {
         this.gravity = 0;
         this.hasPhysics = false;
         this.friction = 0.985f;
-        this.rCol = 0.55f + random.nextFloat() * 0.2f;
-        this.gCol = 0.25f + random.nextFloat() * 0.25f;
-        this.bCol = 1.0f;
+        this.rCol = 0.28f + random.nextFloat() * 0.12f;
+        this.gCol = 0.08f + random.nextFloat() * 0.12f;
+        this.bCol = 0.65f + random.nextFloat() * 0.25f;
         this.alpha = 0;
         this.xd = xSpeed;
         this.yd = ySpeed;
@@ -49,7 +49,7 @@ public class AbyssMoteParticle extends TextureSheetParticle {
         float life = (float) this.age / this.lifetime;
         float fadeIn = Math.min(1.0f, life / 0.12f);
         float fadeOut = Math.min(1.0f, (1.0f - life) / 0.35f);
-        this.alpha = 0.8f * Math.min(fadeIn, fadeOut);
+        this.alpha = 0.58f * Math.min(fadeIn, fadeOut);
         this.quadSize = baseSize * (0.85f + 0.25f * (float) Math.sin(life * Math.PI));
     }
 
