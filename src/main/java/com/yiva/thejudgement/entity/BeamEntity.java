@@ -3,6 +3,7 @@ package com.yiva.thejudgement.entity;
 import com.yiva.thejudgement.Config;
 import com.yiva.thejudgement.TheJudgement;
 import com.yiva.thejudgement.item.JudgementStaffItem;
+import com.yiva.thejudgement.util.BeamGeometry;
 import com.yiva.thejudgement.util.BeamMathHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
@@ -55,6 +56,8 @@ public class BeamEntity extends Entity {
             SynchedEntityData.defineId(BeamEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> PHASE_TIMER =
             SynchedEntityData.defineId(BeamEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Float> BOTTOM_Y =
+            SynchedEntityData.defineId(BeamEntity.class, EntityDataSerializers.FLOAT);
 
     // 静态按键状态存储
     private static final Map<UUID, Boolean> LEFT_KEY_DOWN = new HashMap<>();
@@ -123,6 +126,9 @@ public class BeamEntity extends Entity {
         this.centerPos = pos;
         if (pos != null) {
             this.setPos(pos.x, pos.y, pos.z);
+            if (!level().isClientSide) {
+                updateBottomY();
+            }
         }
     }
 
@@ -157,6 +163,7 @@ public class BeamEntity extends Entity {
         entityData.set(PHASE_TIMER, 0);
         currentRadius = Config.getBeamRadius();
         entityData.set(RADIUS, (float) currentRadius);
+        updateBottomY();
 
         // 扫射模式：设置移动方向和速度
         if (mode == Mode.SWEEP && fixedTargetPos != null) {
@@ -175,6 +182,12 @@ public class BeamEntity extends Entity {
             CHARGING_BEAMS.remove(ownerUUID, this);
             this.discard();
             TheJudgement.LOGGER.info("Beam cancelled by internal condition for " + ownerUUID);
+        }
+    }
+
+    private void updateBottomY() {
+        if (centerPos != null && !level().isClientSide) {
+            entityData.set(BOTTOM_Y, (float) BeamGeometry.findBottomY(level(), centerPos, this));
         }
     }
 
@@ -288,7 +301,6 @@ public class BeamEntity extends Entity {
         phaseTimer++;
         currentRadius = Config.getBeamRadius();
         entityData.set(RADIUS, (float) currentRadius);
-        applyDamage();
         // 潜行轰炸模式：继续向最后目标移动
         if (mode == Mode.BOMB && fixedTargetPos != null) {
             double dist = centerPos.distanceTo(fixedTargetPos);
@@ -304,6 +316,9 @@ public class BeamEntity extends Entity {
             double speedPerTick = Config.blocksPerSecondToBlocksPerTick(Config.getSweepFireSpeed());
             centerPos = centerPos.add(moveDirection.scale(speedPerTick));
         }
+
+        updateBottomY();
+        applyDamage();
 
         int firingTicks = (int) (Config.getFiringTime() * 20);
         if (phaseTimer >= firingTicks) {
@@ -321,11 +336,6 @@ public class BeamEntity extends Entity {
         currentRadius = Config.getBeamRadius() * Math.max(0, shrinkFactor);
         entityData.set(RADIUS, (float) currentRadius);
 
-        if (currentRadius > 0) {
-            applyDamage();
-//            spawnParticles();
-        }
-
         // 潜行轰炸模式：继续向最后目标移动
         if (mode == Mode.BOMB && fixedTargetPos != null) {
             double dist = centerPos.distanceTo(fixedTargetPos);
@@ -340,6 +350,11 @@ public class BeamEntity extends Entity {
         if (mode == Mode.SWEEP && moveDirection != Vec3.ZERO) {
             double speedPerTick = Config.blocksPerSecondToBlocksPerTick(Config.getSweepFireSpeed());
             centerPos = centerPos.add(moveDirection.scale(speedPerTick));
+        }
+
+        updateBottomY();
+        if (currentRadius > 0) {
+            applyDamage();
         }
 
         int dissipateTicks = (int) (Config.getDissipateTime() * 20);
@@ -358,9 +373,10 @@ public class BeamEntity extends Entity {
         Player owner = this.level().getPlayerByUUID(ownerUUID);
         if (owner == null) return;
 
-        double height = Config.getBeamHeight();
-        double cylinderHeight = height * 2;
-        Vec3 cylinderBase = new Vec3(centerPos.x, centerPos.y - height, centerPos.z);
+        double bottomY = getBeamBottomY();
+        double riftY = getRiftY();
+        double cylinderHeight = Math.max(0.05, riftY - bottomY);
+        Vec3 cylinderBase = new Vec3(centerPos.x, bottomY, centerPos.z);
 
         AABB searchBox = new AABB(
                 centerPos.x - currentRadius - 3,
@@ -445,7 +461,7 @@ public class BeamEntity extends Entity {
     }
 
     public Vec3 getCenterPos() {
-        return centerPos != null ? centerPos : position();
+        return level().isClientSide ? position() : (centerPos != null ? centerPos : position());
     }
 
     public Mode getMode() {
@@ -465,6 +481,26 @@ public class BeamEntity extends Entity {
         return entityData.get(PHASE_TIMER);
     }
 
+    public double getBeamBottomY() {
+        return entityData.get(BOTTOM_Y);
+    }
+
+    public double getRiftY() {
+        return BeamGeometry.getRiftY(level(), getCenterPos());
+    }
+
+    @Override
+    public AABB getBoundingBoxForCulling() {
+        Vec3 center = position();
+        double bottomY = Math.min(getBeamBottomY(), center.y);
+        double topY = Math.max(getRiftY(), center.y);
+        double horizontalPadding = Math.max(16.0, Config.getBeamRadius() + 2.0);
+        return new AABB(
+                center.x - horizontalPadding, bottomY - 1.0, center.z - horizontalPadding,
+                center.x + horizontalPadding, topY + 1.0, center.z + horizontalPadding
+        );
+    }
+
     // ==================== 同步数据 ====================
 
     @Override
@@ -474,6 +510,7 @@ public class BeamEntity extends Entity {
         this.entityData.define(RADIUS, (float) Config.getBeamRadius());
         this.entityData.define(TOTAL_TICKS, 0);
         this.entityData.define(PHASE_TIMER, 0);
+        this.entityData.define(BOTTOM_Y, 0.0f);
     }
 
     @Override

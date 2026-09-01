@@ -65,7 +65,15 @@ public final class BeamLateEffectRenderer {
                 }
 
                 renderLateBeam(beam, impact, cameraPos, event.getPartialTick());
-                renderImpactFlare(event, beam, impact, cameraPos);
+                renderImpactFlare(event, beam, impact, cameraPos, 1.0, 0.0);
+                int surfaceIndex = 0;
+                for (Vec3 surface : BeamParticleController.getSurfacePositions(beam)) {
+                    if (Math.abs(surface.y - impact.y) < 0.5) {
+                        continue;
+                    }
+                    renderImpactFlare(event, beam, surface, cameraPos, 0.58, surfaceIndex * 7.3);
+                    surfaceIndex++;
+                }
             }
         } finally {
             endAdditiveRendering();
@@ -78,7 +86,7 @@ public final class BeamLateEffectRenderer {
     }
 
     private static void renderLateBeam(BeamEntity beam, Vec3 impact, Vec3 cameraPos, float partialTick) {
-        Vec3 source = beam.position().add(0, Config.getBeamHeight(), 0);
+        Vec3 source = new Vec3(beam.getX(), beam.getRiftY(), beam.getZ());
         double beamHeight = Math.max(0.05, source.y - impact.y);
         double cameraX = cameraPos.x - impact.x;
         double cameraZ = cameraPos.z - impact.z;
@@ -116,11 +124,13 @@ public final class BeamLateEffectRenderer {
     }
 
     private static void renderImpactFlare(RenderLevelStageEvent event, BeamEntity beam,
-                                          Vec3 impact, Vec3 cameraPos) {
+                                          Vec3 impact, Vec3 cameraPos,
+                                          double sizeScale, double timeOffset) {
         float partialTick = event.getPartialTick();
         double intensity = getEffectIntensity(beam, partialTick);
-        double radius = Math.max(1.4, getVisualRadius(beam, partialTick) * 2.1) * intensity;
-        double time = beam.getTotalLifeTicks() + partialTick;
+        double radius = Math.max(1.4, getVisualRadius(beam, partialTick) * 2.1)
+                * intensity * sizeScale;
+        double time = beam.getTotalLifeTicks() + partialTick + timeOffset;
 
         PoseStack poseStack = new PoseStack();
         poseStack.translate(impact.x - cameraPos.x, impact.y - cameraPos.y, impact.z - cameraPos.z);

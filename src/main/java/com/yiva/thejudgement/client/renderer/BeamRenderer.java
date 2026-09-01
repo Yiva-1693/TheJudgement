@@ -102,7 +102,8 @@ public class BeamRenderer extends EntityRenderer<BeamEntity> {
         int idx = Math.min(totalTicks / RIFT_GROW_INTERVAL, 3);
         ResourceLocation tex = RIFT_GROW[idx];
         renderHorizontalQuad(poseStack, buffer, entity, center,
-                Config.getBeamHeight() + RIFT_HEIGHT_OFFSET, RIFT_RADIUS, tex, packedLight, 1.0f, false);
+                getRiftOffset(entity, center) + RIFT_HEIGHT_OFFSET,
+                RIFT_RADIUS, tex, packedLight, 1.0f, false);
     }
 
     private void renderRiftIdle(BeamEntity entity, Vec3 center, float partialTicks,
@@ -111,7 +112,8 @@ public class BeamRenderer extends EntityRenderer<BeamEntity> {
         int idx = (totalTicks / RIFT_IDLE_INTERVAL) % 4;
         ResourceLocation tex = RIFT_IDLE[idx];
         renderHorizontalQuad(poseStack, buffer, entity, center,
-                Config.getBeamHeight() + RIFT_HEIGHT_OFFSET, RIFT_RADIUS, tex, packedLight, 1.0f, false);
+                getRiftOffset(entity, center) + RIFT_HEIGHT_OFFSET,
+                RIFT_RADIUS, tex, packedLight, 1.0f, false);
     }
 
     private void renderRiftReverseGrow(BeamEntity entity, Vec3 center, float partialTicks,
@@ -124,7 +126,8 @@ public class BeamRenderer extends EntityRenderer<BeamEntity> {
         idx = Math.max(0, Math.min(totalFrames - 1, idx));
         ResourceLocation tex = RIFT_GROW[idx];
         renderHorizontalQuad(poseStack, buffer, entity, center,
-                Config.getBeamHeight() + RIFT_HEIGHT_OFFSET, RIFT_RADIUS, tex, packedLight, 1.0f, false);
+                getRiftOffset(entity, center) + RIFT_HEIGHT_OFFSET,
+                RIFT_RADIUS, tex, packedLight, 1.0f, false);
     }
 
     private void renderPortalIdle(BeamEntity entity, Vec3 center, float partialTicks,
@@ -133,7 +136,8 @@ public class BeamRenderer extends EntityRenderer<BeamEntity> {
         int idx = (phaseTicks / PORTAL_IDLE_INTERVAL) % 4;
         ResourceLocation tex = PORTAL_IDLE[idx];
         renderHorizontalQuad(poseStack, buffer, entity, center,
-                Config.getBeamHeight() + PORTAL_HEIGHT_OFFSET, PORTAL_RADIUS, tex, packedLight, 1.0f, true);
+                getRiftOffset(entity, center) + PORTAL_HEIGHT_OFFSET,
+                PORTAL_RADIUS, tex, packedLight, 1.0f, true);
     }
 
     private void renderPortalReverseGrow(BeamEntity entity, Vec3 center, float partialTicks,
@@ -146,7 +150,12 @@ public class BeamRenderer extends EntityRenderer<BeamEntity> {
         idx = Math.max(0, Math.min(totalFrames - 1, idx));
         ResourceLocation tex = PORTAL_GROW[idx];
         renderHorizontalQuad(poseStack, buffer, entity, center,
-                Config.getBeamHeight() + PORTAL_HEIGHT_OFFSET, PORTAL_RADIUS, tex, packedLight, 1.0f, true);
+                getRiftOffset(entity, center) + PORTAL_HEIGHT_OFFSET,
+                PORTAL_RADIUS, tex, packedLight, 1.0f, true);
+    }
+
+    private double getRiftOffset(BeamEntity entity, Vec3 center) {
+        return entity.getRiftY() - center.y;
     }
 
     private void renderAimMarker(BeamEntity entity, Vec3 center, float partialTicks,
