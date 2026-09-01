@@ -18,8 +18,8 @@ public class ModItems {
             ITEMS.register("the_judgement",
                     () -> new JudgementStaffItem(new Item.Properties()
                             .stacksTo(1)                // 不可堆叠
-//                            .durability(500)            // 耐久度500，后续可通过配置调整
-                            .setNoRepair()              // 暂不可修复，后续可添加修复材料
+                            .durability(JudgementStaffItem.BASE_MAX_ENERGY)
+                            .setNoRepair()
                     ));
 
     // 外部调用注册方法

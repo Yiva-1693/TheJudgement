@@ -1,4 +1,7 @@
 {
   "item.thejudgement.the_judgement": "审判",
-  "creativetab.thejudgement.the_judgement": "审判"
+  "creativetab.thejudgement.the_judgement": "审判",
+  "enchantment.thejudgement.energy_capacity": "能量扩容",
+  "enchantment.thejudgement.energy_regeneration": "能量回流",
+  "tooltip.thejudgement.energy": "能量：%s/%s"
 }

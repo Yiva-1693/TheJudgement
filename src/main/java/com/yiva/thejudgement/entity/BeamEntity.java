@@ -16,6 +16,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -71,7 +72,9 @@ public class BeamEntity extends Entity {
     private int phaseTimer;
     private int totalLifeTicks;
     private double currentRadius;
-    private boolean hasRefundedCD = false; // 是否已返还冷却（每个光束只触发一次）
+    private boolean hasRefundedEnergy = false;
+    @Nullable
+    private UUID sourceStaffId;
     @Nullable
     private Vec3 fixedTargetPos;
 
@@ -131,6 +134,10 @@ public class BeamEntity extends Entity {
         this.fixedTargetPos = pos;
     }
 
+    public void setSourceStaffId(UUID sourceStaffId) {
+        this.sourceStaffId = sourceStaffId;
+    }
+
     public void setPhase(Phase phase) {
         this.phase = phase;
         this.entityData.set(PHASE, phase.ordinal());
@@ -159,44 +166,15 @@ public class BeamEntity extends Entity {
             }
         }
 
-//        applyCooldownToOwner();
     }
 
-    // ==================== 取消施法并冷却 ====================
+    // ==================== 取消施法 ====================
 
-    private void cancelAndCooldown() {
+    private void cancelBeam() {
         if (!level().isClientSide) {
-            applyCooldownToOwner();
             CHARGING_BEAMS.remove(ownerUUID, this);
             this.discard();
             TheJudgement.LOGGER.info("Beam cancelled by internal condition for " + ownerUUID);
-        }
-    }
-    private boolean isOwnerOnCooldown() {
-        if (ownerUUID == null || level().isClientSide) return false;
-        Player owner = level().getPlayerByUUID(ownerUUID);
-        if (owner == null) return false;
-
-        var mainHand = owner.getMainHandItem();
-        var offHand = owner.getOffhandItem();
-
-        if (mainHand.getItem() instanceof JudgementStaffItem staff) {
-            return owner.getCooldowns().isOnCooldown(staff);
-        } else if (offHand.getItem() instanceof JudgementStaffItem staff) {
-            return owner.getCooldowns().isOnCooldown(staff);
-        }
-        return false;
-    }
-    // ==================== 命中返还冷却冷却 ====================
-
-    private void applyCooldownRefund(Player owner) {
-        if (owner == null || this.level().isClientSide) return;
-        var mainHand = owner.getMainHandItem();
-        var offHand = owner.getOffhandItem();
-        if (mainHand.getItem() instanceof JudgementStaffItem staff) {
-            owner.getCooldowns().removeCooldown(staff);
-        } else if (offHand.getItem() instanceof JudgementStaffItem staff) {
-            owner.getCooldowns().removeCooldown(staff);
         }
     }
 
@@ -233,16 +211,11 @@ public class BeamEntity extends Entity {
 
     private void tickCharging() {
         phaseTimer++;
-
-        if (!(BeamEntity.isKeyDown(ownerUUID, true)||BeamEntity.isKeyDown(ownerUUID, false)) && !isOwnerOnCooldown()){
-            CHARGING_BEAMS.remove(ownerUUID, this);
-            applyCooldownToOwner();
-        }
         // 扫射模式：核心向目标追踪移动，同时检查距离过近
         if (mode == Mode.SWEEP && fixedTargetPos != null) {
             double dist = centerPos.distanceTo(fixedTargetPos);
             if (dist < Config.getSweepMinDistance()) {
-                cancelAndCooldown();
+                cancelBeam();
                 return;
             }
             Vec3 delta = fixedTargetPos.subtract(centerPos);
@@ -282,13 +255,9 @@ public class BeamEntity extends Entity {
     }
 
     private void tickChargedWait() {
-        if (!(BeamEntity.isKeyDown(ownerUUID, true)||BeamEntity.isKeyDown(ownerUUID, false)) && !isOwnerOnCooldown()){
-            CHARGING_BEAMS.remove(ownerUUID, this);
-            applyCooldownToOwner();
-        }
         // 检查总蓄力时长是否超限
         if (totalLifeTicks > Config.getMaxChargeDuration() * 20) {
-            cancelAndCooldown();
+            cancelBeam();
             return;
         }
 
@@ -296,7 +265,7 @@ public class BeamEntity extends Entity {
         if (mode == Mode.SWEEP && fixedTargetPos != null) {
             double dist = centerPos.distanceTo(fixedTargetPos);
             if (dist < Config.getSweepMinDistance()) {
-                cancelAndCooldown();
+                cancelBeam();
                 return;
             }
             Vec3 delta = fixedTargetPos.subtract(centerPos);
@@ -317,11 +286,6 @@ public class BeamEntity extends Entity {
 
     private void tickFiring() {
         phaseTimer++;
-        if (!(BeamEntity.isKeyDown(ownerUUID, true)||BeamEntity.isKeyDown(ownerUUID, false)) && !isOwnerOnCooldown()){
-            CHARGING_BEAMS.remove(ownerUUID, this);
-            if (!hasRefundedCD)
-                applyCooldownToOwner();
-        }
         currentRadius = Config.getBeamRadius();
         entityData.set(RADIUS, (float) currentRadius);
         applyDamage();
@@ -352,11 +316,6 @@ public class BeamEntity extends Entity {
 
     private void tickDissipating() {
         phaseTimer++;
-        if (!(BeamEntity.isKeyDown(ownerUUID, true)||BeamEntity.isKeyDown(ownerUUID, false)) && !isOwnerOnCooldown()){
-            CHARGING_BEAMS.remove(ownerUUID, this);
-            if (!hasRefundedCD)
-                applyCooldownToOwner();
-        }
         double progress = (double) phaseTimer / (int) (Config.getDissipateTime() * 20);
         double shrinkFactor = (progress-1)*(progress-1)*(1-progress);
         currentRadius = Config.getBeamRadius() * Math.max(0, shrinkFactor);
@@ -365,8 +324,7 @@ public class BeamEntity extends Entity {
         if (currentRadius > 0) {
             applyDamage();
 //            spawnParticles();
-        }else if (mode == Mode.BOMB && !isOwnerOnCooldown() && !hasRefundedCD)
-            applyCooldownToOwner();
+        }
 
         // 潜行轰炸模式：继续向最后目标移动
         if (mode == Mode.BOMB && fixedTargetPos != null) {
@@ -439,10 +397,9 @@ public class BeamEntity extends Entity {
                         spawnHitParticles(living);
                     }
 
-                    // 直接轰炸模式：命中生物时返还冷却（仅发射阶段，且每个光束只触发一次）
-                    if ((mode == Mode.DIRECT_BOMB) && phase == Phase.FIRING && !hasRefundedCD) {
-                        applyCooldownRefund(owner);
-                        hasRefundedCD = true;
+                    // 直接轰炸模式：命中生物时向实际发动本次攻击的法杖返还100点能量。
+                    if (mode == Mode.DIRECT_BOMB && phase == Phase.FIRING && !hasRefundedEnergy) {
+                        hasRefundedEnergy = restoreSourceStaffEnergy(owner);
                     }
                 }
             }
@@ -463,20 +420,18 @@ public class BeamEntity extends Entity {
         );
     }
 
-    private void applyCooldownToOwner() {
-        if (ownerUUID == null || this.level().isClientSide) return;
-
-        Player owner = this.level().getPlayerByUUID(ownerUUID);
-        if (owner == null) return;
-
-        var mainHand = owner.getMainHandItem();
-        var offHand = owner.getOffhandItem();
-
-        if (mainHand.getItem() instanceof JudgementStaffItem staff) {
-            owner.getCooldowns().addCooldown(staff, Config.getCooldown() * 20);
-        } else if (offHand.getItem() instanceof JudgementStaffItem staff) {
-            owner.getCooldowns().addCooldown(staff, Config.getCooldown() * 20);
+    private boolean restoreSourceStaffEnergy(Player owner) {
+        if (sourceStaffId == null) {
+            return false;
         }
+        for (int slot = 0; slot < owner.getInventory().getContainerSize(); slot++) {
+            ItemStack stack = owner.getInventory().getItem(slot);
+            if (JudgementStaffItem.hasEnergyId(stack, sourceStaffId)) {
+                JudgementStaffItem.restoreEnergy(stack, JudgementStaffItem.ENERGY_COST);
+                return true;
+            }
+        }
+        return false;
     }
 
     // ==================== Getter ====================

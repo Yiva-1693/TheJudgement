@@ -4,7 +4,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.yiva.thejudgement.Config;
 import com.yiva.thejudgement.entity.BeamEntity;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
@@ -16,12 +15,6 @@ import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 
 public class BeamRenderer extends EntityRenderer<BeamEntity> {
-
-    private static final ResourceLocation WHITE_BEAM_TEXTURE =
-            new ResourceLocation("thejudgement", "textures/entity/white_beam.png");
-
-    private static final ResourceLocation SURFACE_TEXTURE =
-            new ResourceLocation("thejudgement", "textures/entity/surface.png");
 
     private static final ResourceLocation BEAM_TEXTURE =
             new ResourceLocation("thejudgement", "textures/entity/abyss_laser_beam_single.png");
@@ -80,8 +73,6 @@ public class BeamRenderer extends EntityRenderer<BeamEntity> {
     public void render(BeamEntity entity, float entityYaw, float partialTicks, PoseStack poseStack,
                        MultiBufferSource buffer, int packedLight) {
         Vec3 center = entity.position();
-        double radius = entity.getCurrentRadius();
-        double height = Config.getBeamHeight();
 
         BeamEntity.Phase currentPhase = entity.getPhase();
 
@@ -95,132 +86,14 @@ public class BeamRenderer extends EntityRenderer<BeamEntity> {
             case FIRING:
                 renderRiftIdle(entity, center, partialTicks, poseStack, buffer, fullBright);
                 renderPortalIdle(entity, center, partialTicks, poseStack, buffer, fullBright);
-                if (radius > 0.01) {
-                    renderBeam(entity, center, radius, height, partialTicks, poseStack, buffer, fullBright);
-                }
                 break;
             case DISSIPATING:
                 renderRiftReverseGrow(entity, center, partialTicks, poseStack, buffer, fullBright);
                 renderPortalReverseGrow(entity, center, partialTicks, poseStack, buffer, fullBright);
-                if (radius > 0.01) {
-                    renderBeam(entity, center, radius, height, partialTicks, poseStack, buffer, fullBright);
-                }
                 break;
         }
 
         super.render(entity, entityYaw, partialTicks, poseStack, buffer, packedLight);
-    }
-
-    private void renderBillboardBand(MultiBufferSource buffer, PoseStack poseStack,
-                                     float bottomY, float topY, float normalX, float normalZ,
-                                     float tangentX, float tangentZ, double innerRadius, double outerRadius,
-                                     ResourceLocation texture, int packedLight, float alpha,
-                                     boolean translucent) {
-        RenderType renderType = RenderType.beaconBeam(texture, translucent);
-        VertexConsumer consumer = buffer.getBuffer(renderType);
-        Matrix4f pose = poseStack.last().pose();
-
-        if (innerRadius <= 0) {
-            addBillboardQuad(consumer, pose, bottomY, topY, normalX, normalZ, tangentX, tangentZ,
-                    -outerRadius, outerRadius, packedLight, alpha);
-        } else {
-            addBillboardQuad(consumer, pose, bottomY, topY, normalX, normalZ, tangentX, tangentZ,
-                    -outerRadius, -innerRadius, packedLight, alpha);
-            addBillboardQuad(consumer, pose, bottomY, topY, normalX, normalZ, tangentX, tangentZ,
-                    innerRadius, outerRadius, packedLight, alpha);
-        }
-    }
-
-    private void addBillboardQuad(VertexConsumer consumer, Matrix4f pose,
-                                  float bottomY, float topY, float normalX, float normalZ,
-                                  float tangentX, float tangentZ, double fromRadius, double toRadius,
-                                  int packedLight, float alpha) {
-        float x1 = (float) (tangentX * fromRadius);
-        float z1 = (float) (tangentZ * fromRadius);
-        float x2 = (float) (tangentX * toRadius);
-        float z2 = (float) (tangentZ * toRadius);
-
-        consumer.vertex(pose, x1, bottomY, z1)
-                .color(1f, 1f, 1f, alpha)
-                .uv(0, 1)
-                .overlayCoords(OverlayTexture.NO_OVERLAY)
-                .uv2(packedLight)
-                .normal(normalX, 0, normalZ)
-                .endVertex();
-        consumer.vertex(pose, x2, bottomY, z2)
-                .color(1f, 1f, 1f, alpha)
-                .uv(1, 1)
-                .overlayCoords(OverlayTexture.NO_OVERLAY)
-                .uv2(packedLight)
-                .normal(normalX, 0, normalZ)
-                .endVertex();
-        consumer.vertex(pose, x2, topY, z2)
-                .color(1f, 1f, 1f, alpha)
-                .uv(1, 0)
-                .overlayCoords(OverlayTexture.NO_OVERLAY)
-                .uv2(packedLight)
-                .normal(normalX, 0, normalZ)
-                .endVertex();
-        consumer.vertex(pose, x1, topY, z1)
-                .color(1f, 1f, 1f, alpha)
-                .uv(0, 0)
-                .overlayCoords(OverlayTexture.NO_OVERLAY)
-                .uv2(packedLight)
-                .normal(normalX, 0, normalZ)
-                .endVertex();
-    }
-
-    private void renderBeam(BeamEntity entity, Vec3 center, double radius, double height,
-                            float partialTicks, PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
-        poseStack.pushPose();
-        poseStack.translate(center.x - entity.getX(), center.y - entity.getY(), center.z - entity.getZ());
-
-        Vec3 cameraPos = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
-        double cameraX = cameraPos.x - center.x;
-        double cameraZ = cameraPos.z - center.z;
-        double horizontalLength = Math.sqrt(cameraX * cameraX + cameraZ * cameraZ);
-        if (horizontalLength < 1.0E-5) {
-            cameraX = 0;
-            cameraZ = 1;
-            horizontalLength = 1;
-        }
-
-        float normalX = (float) (cameraX / horizontalLength);
-        float normalZ = (float) (cameraZ / horizontalLength);
-        float tangentX = normalZ;
-        float tangentZ = -normalX;
-
-        double visualRadius = getVisualRadius(entity, radius, partialTicks);
-        float bottomY = -(float) height;
-        float topY = (float) height;
-
-        // 三层互不重叠，避免透明面重复混合产生圆柱明暗。
-        renderBillboardBand(buffer, poseStack, bottomY, topY, normalX, normalZ, tangentX, tangentZ,
-                visualRadius * 0.72, visualRadius, SURFACE_TEXTURE, packedLight, 0.75f, true);
-
-        renderBillboardBand(buffer, poseStack, bottomY, topY, normalX, normalZ, tangentX, tangentZ,
-                visualRadius * 0.36, visualRadius * 0.72, BEAM_TEXTURE, packedLight, 0.95f, true);
-
-        renderBillboardBand(buffer, poseStack, bottomY, topY, normalX, normalZ, tangentX, tangentZ,
-                0, visualRadius * 0.36, WHITE_BEAM_TEXTURE, packedLight, 1.0f, false);
-
-        poseStack.popPose();
-    }
-
-    private double getVisualRadius(BeamEntity entity, double radius, float partialTicks) {
-        double time = entity.getTotalLifeTicks() + partialTicks;
-        double jitter = Math.sin(time * 2.37 + entity.getId() * 0.71) * 0.025
-                + Math.sin(time * 4.91 + entity.getId() * 1.13) * 0.015
-                + Math.sin(time * 7.43 + entity.getId() * 0.37) * 0.01;
-
-        if (entity.getPhase() == BeamEntity.Phase.FIRING) {
-            double progress = Math.min(1.0, (entity.getPhaseTimer() + partialTicks) / 2.0);
-            double easedProgress = progress * progress * (3.0 - 2.0 * progress);
-            double burstScale = 2.2 + (1.0 - 2.2) * easedProgress;
-            return radius * (progress < 1.0 ? burstScale : 1.0 + jitter);
-        }
-
-        return radius * (1.0 + jitter);
     }
 
     private void renderRiftGrow(BeamEntity entity, Vec3 center, float partialTicks,

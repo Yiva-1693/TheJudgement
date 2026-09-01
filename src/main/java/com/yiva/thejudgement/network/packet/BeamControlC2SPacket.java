@@ -122,7 +122,7 @@ public class BeamControlC2SPacket {
                 case START_CHARGE -> {
                     var mainHand = player.getMainHandItem();
                     if (!(mainHand.getItem() instanceof JudgementStaffItem)
-                            || player.getCooldowns().isOnCooldown(mainHand.getItem())) {
+                            || !JudgementStaffItem.hasEnoughEnergy(mainHand)) {
                         return;
                     }
 
@@ -153,6 +153,7 @@ public class BeamControlC2SPacket {
                     beam.setMode(mode);
                     beam.setPhase(BeamEntity.Phase.CHARGING);
                     beam.setPhaseTimer(0);
+                    beam.setSourceStaffId(JudgementStaffItem.getOrCreateEnergyId(mainHand));
 
                     beam.setCenterPos(startCenter);
 
@@ -164,7 +165,13 @@ public class BeamControlC2SPacket {
                     }
 
                     beam.setPos(startCenter.x, startCenter.y, startCenter.z);
-                    level.addFreshEntity(beam);
+                    if (!JudgementStaffItem.consumeEnergy(mainHand, JudgementStaffItem.ENERGY_COST)) {
+                        return;
+                    }
+                    if (!level.addFreshEntity(beam)) {
+                        JudgementStaffItem.restoreEnergy(mainHand, JudgementStaffItem.ENERGY_COST);
+                        return;
+                    }
                     BeamEntity.CHARGING_BEAMS.put(playerUUID, beam);
                 }
 
@@ -195,7 +202,6 @@ public class BeamControlC2SPacket {
                     if (beam != null && !beam.isRemoved()) {
                         beam.discard();
                     }
-                    applyCooldown(player);
                     BeamEntity.setKeyState(playerUUID, isLeftMode(mode), false);
                 }
 
@@ -207,16 +213,6 @@ public class BeamControlC2SPacket {
             }
         });
         context.setPacketHandled(true);
-    }
-
-    private void applyCooldown(ServerPlayer player) {
-        var mainHand = player.getMainHandItem();
-        var offHand = player.getOffhandItem();
-        if (mainHand.getItem() instanceof com.yiva.thejudgement.item.JudgementStaffItem staff) {
-            player.getCooldowns().addCooldown(staff, com.yiva.thejudgement.Config.getCooldown() * 20);
-        } else if (offHand.getItem() instanceof com.yiva.thejudgement.item.JudgementStaffItem staff) {
-            player.getCooldowns().addCooldown(staff, com.yiva.thejudgement.Config.getCooldown() * 20);
-        }
     }
 
     private static boolean isLeftMode(BeamEntity.Mode mode) {

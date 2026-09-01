@@ -1,6 +1,7 @@
 package com.yiva.thejudgement;
 
 import com.yiva.thejudgement.entity.ModEntities;
+import com.yiva.thejudgement.enchantment.ModEnchantments;
 import com.yiva.thejudgement.item.ModCreativeTabs;
 import com.yiva.thejudgement.item.ModItems;
 import com.yiva.thejudgement.network.ModMessages;
@@ -38,6 +39,8 @@ public class TheJudgement {
         ModItems.register(modEventBus);
         // 创造模式页签
         ModCreativeTabs.register(modEventBus);
+        // 法杖专属附魔
+        ModEnchantments.register(modEventBus);
         // 实体
         ModEntities.register(modEventBus);
         // 音效

@@ -13,6 +13,7 @@ import com.yiva.thejudgement.client.particle.BeamParticleController;
 import com.yiva.thejudgement.entity.BeamEntity;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
@@ -29,6 +30,12 @@ public final class BeamLateEffectRenderer {
 
     private static final double MAX_RENDER_DISTANCE_SQR = 192.0 * 192.0;
     private static final int GLOW_SEGMENTS = 32;
+    private static final ResourceLocation WHITE_BEAM_TEXTURE =
+            new ResourceLocation(TheJudgement.MOD_ID, "textures/entity/white_beam.png");
+    private static final ResourceLocation SURFACE_TEXTURE =
+            new ResourceLocation(TheJudgement.MOD_ID, "textures/entity/surface.png");
+    private static final ResourceLocation BEAM_TEXTURE =
+            new ResourceLocation(TheJudgement.MOD_ID, "textures/entity/abyss_laser_beam_single.png");
 
     private BeamLateEffectRenderer() {
     }
@@ -57,7 +64,7 @@ public final class BeamLateEffectRenderer {
                     continue;
                 }
 
-                renderLateBeam(event.getPoseStack(), beam, impact, cameraPos, event.getPartialTick());
+                renderLateBeam(beam, impact, cameraPos, event.getPartialTick());
                 renderImpactFlare(event, beam, impact, cameraPos);
             }
         } finally {
@@ -70,8 +77,7 @@ public final class BeamLateEffectRenderer {
                 || (beam.getPhase() == BeamEntity.Phase.DISSIPATING && beam.getCurrentRadius() > 0.02);
     }
 
-    private static void renderLateBeam(PoseStack poseStack, BeamEntity beam, Vec3 impact,
-                                       Vec3 cameraPos, float partialTick) {
+    private static void renderLateBeam(BeamEntity beam, Vec3 impact, Vec3 cameraPos, float partialTick) {
         Vec3 source = beam.position().add(0, Config.getBeamHeight(), 0);
         double beamHeight = Math.max(0.05, source.y - impact.y);
         double cameraX = cameraPos.x - impact.x;
@@ -87,21 +93,26 @@ public final class BeamLateEffectRenderer {
         float tangentZ = (float) (-cameraX / horizontalLength);
         double radius = getVisualRadius(beam, partialTick);
 
-        poseStack.pushPose();
+        // RenderLevelStageEvent 的矩阵已经包含视角变换。立即模式顶点再使用它会重复应用相机旋转，
+        // 因此这里从单位矩阵开始，只做一次世界坐标到相机相对坐标的平移。
+        PoseStack poseStack = new PoseStack();
         poseStack.translate(impact.x - cameraPos.x, impact.y - cameraPos.y, impact.z - cameraPos.z);
         Matrix4f matrix = poseStack.last().pose();
-        drawVerticalQuad(matrix, beamHeight, tangentX, tangentZ, radius * 1.15,
-                0.34f, 0.08f, 1.0f, 0.22f);
-        // Only the narrow emissive core ignores depth so cloud and fluid colors cannot cover it.
-        // The wider glow remains depth-tested to reduce visible bleed through solid terrain.
+
+        // 完整激光在天气之后一次绘制，避免实体渲染与补光渲染形成两根光柱。
         RenderSystem.disableDepthTest();
         try {
-            drawVerticalQuad(matrix, beamHeight, tangentX, tangentZ, radius * 0.42,
-                    1.0f, 0.96f, 1.0f, 0.72f);
+            drawVerticalQuad(matrix, beamHeight, tangentX, tangentZ, radius * 1.18,
+                    0.34f, 0.08f, 1.0f, 0.24f);
+            drawTexturedVerticalBand(matrix, beamHeight, tangentX, tangentZ,
+                    radius * 0.72, radius, SURFACE_TEXTURE, 0.75f);
+            drawTexturedVerticalBand(matrix, beamHeight, tangentX, tangentZ,
+                    radius * 0.36, radius * 0.72, BEAM_TEXTURE, 0.95f);
+            drawTexturedVerticalBand(matrix, beamHeight, tangentX, tangentZ,
+                    0, radius * 0.36, WHITE_BEAM_TEXTURE, 1.0f);
         } finally {
             RenderSystem.enableDepthTest();
         }
-        poseStack.popPose();
     }
 
     private static void renderImpactFlare(RenderLevelStageEvent event, BeamEntity beam,
@@ -111,13 +122,12 @@ public final class BeamLateEffectRenderer {
         double radius = Math.max(1.4, getVisualRadius(beam, partialTick) * 2.1) * intensity;
         double time = beam.getTotalLifeTicks() + partialTick;
 
-        PoseStack poseStack = event.getPoseStack();
-        poseStack.pushPose();
+        PoseStack poseStack = new PoseStack();
         poseStack.translate(impact.x - cameraPos.x, impact.y - cameraPos.y, impact.z - cameraPos.z);
         drawRadialGlow(poseStack.last().pose(), radius * 1.35, true,
                 0.36f, 0.08f, 1.0f, 0.55f);
-        poseStack.popPose();
 
+        poseStack = new PoseStack();
         poseStack.pushPose();
         poseStack.translate(impact.x - cameraPos.x, impact.y - cameraPos.y + 0.08, impact.z - cameraPos.z);
         poseStack.mulPose(event.getCamera().rotation());
@@ -136,6 +146,36 @@ public final class BeamLateEffectRenderer {
                 1.0f, 0.96f, 1.0f, 0.86f);
         poseStack.popPose();
         poseStack.popPose();
+    }
+
+    private static void drawTexturedVerticalBand(Matrix4f matrix, double height, float tangentX, float tangentZ,
+                                                 double innerRadius, double outerRadius,
+                                                 ResourceLocation texture, float alpha) {
+        RenderSystem.setShaderTexture(0, texture);
+        BufferBuilder builder = beginTextured();
+        if (innerRadius <= 0) {
+            addTexturedVerticalQuad(builder, matrix, height, tangentX, tangentZ,
+                    -outerRadius, outerRadius, alpha);
+        } else {
+            addTexturedVerticalQuad(builder, matrix, height, tangentX, tangentZ,
+                    -outerRadius, -innerRadius, alpha);
+            addTexturedVerticalQuad(builder, matrix, height, tangentX, tangentZ,
+                    innerRadius, outerRadius, alpha);
+        }
+        Tesselator.getInstance().end();
+    }
+
+    private static void addTexturedVerticalQuad(BufferBuilder builder, Matrix4f matrix, double height,
+                                                float tangentX, float tangentZ,
+                                                double fromRadius, double toRadius, float alpha) {
+        float x1 = (float) (tangentX * fromRadius);
+        float z1 = (float) (tangentZ * fromRadius);
+        float x2 = (float) (tangentX * toRadius);
+        float z2 = (float) (tangentZ * toRadius);
+        builder.vertex(matrix, x1, 0, z1).uv(0, 1).color(1, 1, 1, alpha).endVertex();
+        builder.vertex(matrix, x2, 0, z2).uv(1, 1).color(1, 1, 1, alpha).endVertex();
+        builder.vertex(matrix, x2, (float) height, z2).uv(1, 0).color(1, 1, 1, alpha).endVertex();
+        builder.vertex(matrix, x1, (float) height, z1).uv(0, 0).color(1, 1, 1, alpha).endVertex();
     }
 
     private static double getVisualRadius(BeamEntity beam, float partialTick) {
@@ -226,6 +266,13 @@ public final class BeamLateEffectRenderer {
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
         BufferBuilder builder = Tesselator.getInstance().getBuilder();
         builder.begin(mode, DefaultVertexFormat.POSITION_COLOR);
+        return builder;
+    }
+
+    private static BufferBuilder beginTextured() {
+        RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
+        BufferBuilder builder = Tesselator.getInstance().getBuilder();
+        builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
         return builder;
     }
 

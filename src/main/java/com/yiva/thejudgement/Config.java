@@ -49,9 +49,6 @@ public class Config {
         public final ForgeConfigSpec.DoubleValue sweepFireSpeed;       // 第二阶段飞行速度（格/秒）
         public final ForgeConfigSpec.DoubleValue sweepMinDistance;     // 最小安全距离（小于则取消）
 
-        // ---------- 冷却与限制 ----------
-        public final ForgeConfigSpec.IntValue cooldownSeconds;         // 技能冷却时间（秒）
-
         public CommonConfig(ForgeConfigSpec.Builder builder) {
             builder.push("beam_core");
             beamRadius = builder
@@ -111,15 +108,9 @@ public class Config {
                     .defineInRange("sweepMinDistance", 1.0, 1.0, 30.0);
             builder.pop();
 
-            builder.push("cooldown");
-            cooldownSeconds = builder
-                    .comment("施法后/取消后的冷却时间（秒）")
-                    .defineInRange("cooldownSeconds", 5, 1, 30);
-            builder.pop();
-
             builder.push("timing");
             maxChargeDuration = builder
-                    .comment("最大蓄力总时长（秒），超过则自动取消并冷却")
+                    .comment("最大蓄力总时长（秒），超过则自动取消")
                     .defineInRange("maxChargeDuration", 4.0, 1.0, 30.0);
             builder.pop();
 
@@ -142,7 +133,6 @@ public class Config {
     public static double getSweepTrackSpeed() { return COMMON.sweepTrackSpeed.get(); }
     public static double getSweepFireSpeed() { return COMMON.sweepFireSpeed.get(); }
     public static double getSweepMinDistance() { return COMMON.sweepMinDistance.get(); }
-    public static int getCooldown() { return COMMON.cooldownSeconds.get(); }
     public static double getBombTargetMaxRange() { return COMMON.bombTargetMaxRange.get(); }
 
     /**

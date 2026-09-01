@@ -39,7 +39,7 @@ public class InputHandler {
         if (player == null || mc.screen != null) return;
 
         ItemStack mainHand = player.getMainHandItem();
-        if (!(mainHand.getItem() instanceof JudgementStaffItem staff)) return;
+        if (!(mainHand.getItem() instanceof JudgementStaffItem)) return;
 
         int button = event.getButton();
         int action = event.getAction();
@@ -51,7 +51,7 @@ public class InputHandler {
                     cancelRight(player);
                     return;
                 }
-                if (player.getCooldowns().isOnCooldown(mainHand.getItem())) return;
+                if (!JudgementStaffItem.hasEnoughEnergy(mainHand)) return;
                 if (leftCharging) return;
 
                 if (player.isShiftKeyDown()) {
@@ -98,7 +98,7 @@ public class InputHandler {
                     cancelLeft(player);
                     return;
                 }
-                if (player.getCooldowns().isOnCooldown(mainHand.getItem())) return;
+                if (!JudgementStaffItem.hasEnoughEnergy(mainHand)) return;
                 if (rightCharging) return;
 
                 rightPressTime = System.currentTimeMillis();

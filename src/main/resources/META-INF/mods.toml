@@ -13,7 +13,7 @@ description='''
 Adds the powerful "Judgement Staff" – a magical weapon with two firing modes:
 - Bombardment (left-click): Call down a stationary divine beam after aiming with a dynamic targeting sphere.
 - Sweep (right-click): Guide a moving laser beam across the battlefield.
-Features frame-based damage, visual effects, and cooldown mechanics.
+Features frame-based damage, visual effects, and a rechargeable energy system.
 '''
 
 [[dependencies.thejudgement]]
