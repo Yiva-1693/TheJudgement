@@ -155,8 +155,6 @@ public class BeamEntity extends Entity {
     }
 
     public void enterFiringPhase() {
-
-
         phase = Phase.FIRING;
         entityData.set(PHASE, phase.ordinal());
         phaseTimer = 0;
@@ -173,6 +171,11 @@ public class BeamEntity extends Entity {
             }
         }
 
+        // 发射后的光柱拥有独立生命周期，不再属于玩家当前可控制的蓄力光柱。
+        // 否则下一次开始蓄力或取消施法时会误删这束仍在发射/消散的光柱。
+        if (!level().isClientSide && ownerUUID != null) {
+            CHARGING_BEAMS.remove(ownerUUID, this);
+        }
     }
 
     // ==================== 取消施法 ====================
