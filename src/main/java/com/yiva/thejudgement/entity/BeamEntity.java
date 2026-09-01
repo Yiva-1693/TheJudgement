@@ -76,6 +76,7 @@ public class BeamEntity extends Entity {
     private int totalLifeTicks;
     private double currentRadius;
     private boolean hasRefundedEnergy = false;
+    private boolean chargeReleased = false;
     @Nullable
     private UUID sourceStaffId;
     @Nullable
@@ -178,6 +179,21 @@ public class BeamEntity extends Entity {
         }
     }
 
+    public void releaseCharge() {
+        if (level().isClientSide || (phase != Phase.CHARGING && phase != Phase.CHARGED_WAIT)) {
+            return;
+        }
+
+        chargeReleased = true;
+        if (ownerUUID != null) {
+            // 松键后立刻解除缓存所有权，避免下一次蓄力在实体 tick 前误删本光柱。
+            CHARGING_BEAMS.remove(ownerUUID, this);
+        }
+        if (phase == Phase.CHARGED_WAIT) {
+            enterFiringPhase();
+        }
+    }
+
     // ==================== 取消施法 ====================
 
     private void cancelBeam() {
@@ -245,10 +261,15 @@ public class BeamEntity extends Entity {
 
         int chargeTicks = (int) (Config.getChargeTime() * 20);
         if (phaseTimer >= chargeTicks && mode != Mode.BOMB) {
-            phase = Phase.CHARGED_WAIT;
-            entityData.set(PHASE, phase.ordinal());
-            phaseTimer = 0;
-            entityData.set(PHASE_TIMER, 0);
+            if (chargeReleased) {
+                // 玩家提前松键时，蓄力完成后直接发射，不再依赖全局按键状态或下一次 tick。
+                enterFiringPhase();
+            } else {
+                phase = Phase.CHARGED_WAIT;
+                entityData.set(PHASE, phase.ordinal());
+                phaseTimer = 0;
+                entityData.set(PHASE_TIMER, 0);
+            }
         }
 
         // 扫射模式或潜行轰炸模式：核心向目标追踪移动

@@ -145,8 +145,9 @@ public class BeamControlC2SPacket {
 
                     BeamEntity oldBeam = getControllableBeam(playerUUID);
                     if (oldBeam != null) {
-                        BeamEntity.CHARGING_BEAMS.remove(playerUUID, oldBeam);
-                        oldBeam.discard();
+                        // 新一轮蓄力只会释放旧光柱，不会将其取消。旧光柱会独立完成剩余蓄力并发射，
+                        // 从而支持快速点击连发，也防御同一服务端 tick 内的数据包时序差异。
+                        oldBeam.releaseCharge();
                     }
 
                     BeamEntity beam = new BeamEntity(ModEntities.BEAM.get(), level);
@@ -210,6 +211,10 @@ public class BeamControlC2SPacket {
                     BeamEntity beam = getControllableBeam(playerUUID);
                     if (beam != null && beam.getMode() != mode) return;
                     BeamEntity.setKeyState(playerUUID, isLeftMode(mode), keyDown);
+                    if (!keyDown && beam != null) {
+                        // 在数据包处理阶段完成释放，避免等待实体 tick 时被下一次蓄力误删。
+                        beam.releaseCharge();
+                    }
                 }
             }
         });
