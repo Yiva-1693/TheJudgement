@@ -224,6 +224,10 @@ public class BeamEntity extends Entity {
 
     private void tickCharging() {
         phaseTimer++;
+
+        if (!(BeamEntity.isKeyDown(ownerUUID, true)||BeamEntity.isKeyDown(ownerUUID, false)) )
+            CHARGING_BEAMS.remove(ownerUUID, this);
+
         // 扫射模式：核心向目标追踪移动，同时检查距离过近
         if (mode == Mode.SWEEP && fixedTargetPos != null) {
             double dist = centerPos.distanceTo(fixedTargetPos);
@@ -268,6 +272,8 @@ public class BeamEntity extends Entity {
     }
 
     private void tickChargedWait() {
+        if (!(BeamEntity.isKeyDown(ownerUUID, true)||BeamEntity.isKeyDown(ownerUUID, false)) )
+            CHARGING_BEAMS.remove(ownerUUID, this);
         // 检查总蓄力时长是否超限
         if (totalLifeTicks > Config.getMaxChargeDuration() * 20) {
             cancelBeam();
@@ -298,6 +304,8 @@ public class BeamEntity extends Entity {
     }
 
     private void tickFiring() {
+        if (!(BeamEntity.isKeyDown(ownerUUID, true)||BeamEntity.isKeyDown(ownerUUID, false)) )
+            CHARGING_BEAMS.remove(ownerUUID, this);
         phaseTimer++;
         currentRadius = Config.getBeamRadius();
         entityData.set(RADIUS, (float) currentRadius);
@@ -330,6 +338,8 @@ public class BeamEntity extends Entity {
     }
 
     private void tickDissipating() {
+        if (!(BeamEntity.isKeyDown(ownerUUID, true)||BeamEntity.isKeyDown(ownerUUID, false)) )
+            CHARGING_BEAMS.remove(ownerUUID, this);
         phaseTimer++;
         double progress = (double) phaseTimer / (int) (Config.getDissipateTime() * 20);
         double shrinkFactor = (progress-1)*(progress-1)*(1-progress);
