@@ -76,7 +76,6 @@ public class BeamEntity extends Entity {
     private int totalLifeTicks;
     private double currentRadius;
     private boolean hasRefundedEnergy = false;
-    private boolean chargeReleased = false;
     @Nullable
     private UUID sourceStaffId;
     @Nullable
@@ -156,6 +155,8 @@ public class BeamEntity extends Entity {
     }
 
     public void enterFiringPhase() {
+
+
         phase = Phase.FIRING;
         entityData.set(PHASE, phase.ordinal());
         phaseTimer = 0;
@@ -172,26 +173,6 @@ public class BeamEntity extends Entity {
             }
         }
 
-        // 发射后的光柱拥有独立生命周期，不再属于玩家当前可控制的蓄力光柱。
-        // 否则下一次开始蓄力或取消施法时会误删这束仍在发射/消散的光柱。
-        if (!level().isClientSide && ownerUUID != null) {
-            CHARGING_BEAMS.remove(ownerUUID, this);
-        }
-    }
-
-    public void releaseCharge() {
-        if (level().isClientSide || (phase != Phase.CHARGING && phase != Phase.CHARGED_WAIT)) {
-            return;
-        }
-
-        chargeReleased = true;
-        if (ownerUUID != null) {
-            // 松键后立刻解除缓存所有权，避免下一次蓄力在实体 tick 前误删本光柱。
-            CHARGING_BEAMS.remove(ownerUUID, this);
-        }
-        if (phase == Phase.CHARGED_WAIT) {
-            enterFiringPhase();
-        }
     }
 
     // ==================== 取消施法 ====================
@@ -243,6 +224,10 @@ public class BeamEntity extends Entity {
 
     private void tickCharging() {
         phaseTimer++;
+
+        if (!(BeamEntity.isKeyDown(ownerUUID, true)||BeamEntity.isKeyDown(ownerUUID, false)) )
+            CHARGING_BEAMS.remove(ownerUUID, this);
+
         // 扫射模式：核心向目标追踪移动，同时检查距离过近
         if (mode == Mode.SWEEP && fixedTargetPos != null) {
             double dist = centerPos.distanceTo(fixedTargetPos);
@@ -261,15 +246,10 @@ public class BeamEntity extends Entity {
 
         int chargeTicks = (int) (Config.getChargeTime() * 20);
         if (phaseTimer >= chargeTicks && mode != Mode.BOMB) {
-            if (chargeReleased) {
-                // 玩家提前松键时，蓄力完成后直接发射，不再依赖全局按键状态或下一次 tick。
-                enterFiringPhase();
-            } else {
-                phase = Phase.CHARGED_WAIT;
-                entityData.set(PHASE, phase.ordinal());
-                phaseTimer = 0;
-                entityData.set(PHASE_TIMER, 0);
-            }
+            phase = Phase.CHARGED_WAIT;
+            entityData.set(PHASE, phase.ordinal());
+            phaseTimer = 0;
+            entityData.set(PHASE_TIMER, 0);
         }
 
         // 扫射模式或潜行轰炸模式：核心向目标追踪移动
@@ -292,6 +272,8 @@ public class BeamEntity extends Entity {
     }
 
     private void tickChargedWait() {
+        if (!(BeamEntity.isKeyDown(ownerUUID, true)||BeamEntity.isKeyDown(ownerUUID, false)) )
+            CHARGING_BEAMS.remove(ownerUUID, this);
         // 检查总蓄力时长是否超限
         if (totalLifeTicks > Config.getMaxChargeDuration() * 20) {
             cancelBeam();
@@ -322,6 +304,8 @@ public class BeamEntity extends Entity {
     }
 
     private void tickFiring() {
+        if (!(BeamEntity.isKeyDown(ownerUUID, true)||BeamEntity.isKeyDown(ownerUUID, false)) )
+            CHARGING_BEAMS.remove(ownerUUID, this);
         phaseTimer++;
         currentRadius = Config.getBeamRadius();
         entityData.set(RADIUS, (float) currentRadius);
@@ -354,6 +338,8 @@ public class BeamEntity extends Entity {
     }
 
     private void tickDissipating() {
+        if (!(BeamEntity.isKeyDown(ownerUUID, true)||BeamEntity.isKeyDown(ownerUUID, false)) )
+            CHARGING_BEAMS.remove(ownerUUID, this);
         phaseTimer++;
         double progress = (double) phaseTimer / (int) (Config.getDissipateTime() * 20);
         double shrinkFactor = (progress-1)*(progress-1)*(1-progress);

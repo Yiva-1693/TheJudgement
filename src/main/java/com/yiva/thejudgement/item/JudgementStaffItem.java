@@ -73,21 +73,6 @@ public class JudgementStaffItem extends Item {
     }
 
     @Override
-    public boolean shouldCauseReequipAnimation(ItemStack oldStack, ItemStack newStack, boolean slotChanged) {
-        if (slotChanged || oldStack.getItem() != this || newStack.getItem() != this) {
-            return true;
-        }
-
-        // 能量使用原版 Damage 标签保存。比较前将两份快照的 Damage 对齐，
-        // 避免每秒恢复能量时被客户端误判为切换了手中物品。
-        ItemStack oldSnapshot = oldStack.copy();
-        ItemStack newSnapshot = newStack.copy();
-        oldSnapshot.setDamageValue(0);
-        newSnapshot.setDamageValue(0);
-        return !ItemStack.matches(oldSnapshot, newSnapshot);
-    }
-
-    @Override
     public boolean isValidRepairItem(ItemStack stack, ItemStack repairCandidate) {
         return false;
     }

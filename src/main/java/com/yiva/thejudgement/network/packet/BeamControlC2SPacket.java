@@ -143,11 +143,9 @@ public class BeamControlC2SPacket {
                         startCenter = new Vec3(blockPos.getX() + 0.5, blockPos.getY() - 1.0, blockPos.getZ() + 0.5);
                     }
 
-                    BeamEntity oldBeam = getControllableBeam(playerUUID);
-                    if (oldBeam != null) {
-                        // 新一轮蓄力只会释放旧光柱，不会将其取消。旧光柱会独立完成剩余蓄力并发射，
-                        // 从而支持快速点击连发，也防御同一服务端 tick 内的数据包时序差异。
-                        oldBeam.releaseCharge();
+                    BeamEntity oldBeam = BeamEntity.CHARGING_BEAMS.remove(playerUUID);
+                    if (oldBeam != null && !oldBeam.isRemoved()) {
+                        oldBeam.discard();
                     }
 
                     BeamEntity beam = new BeamEntity(ModEntities.BEAM.get(), level);
@@ -178,8 +176,8 @@ public class BeamControlC2SPacket {
                 }
 
                 case UPDATE_CHARGE -> {
-                    BeamEntity beam = getControllableBeam(playerUUID);
-                    if (beam == null) return;
+                    BeamEntity beam = BeamEntity.CHARGING_BEAMS.get(playerUUID);
+                    if (beam == null || beam.isRemoved()) return;
                     if (beam.getMode() != mode) {
                         TheJudgement.LOGGER.warn("BeamControlC2SPacket.handle: mode mismatch!");
                         return;
@@ -198,42 +196,23 @@ public class BeamControlC2SPacket {
                 }
 
                 case CANCEL_CHARGE -> {
-                    BeamEntity beam = getControllableBeam(playerUUID);
+                    BeamEntity beam = BeamEntity.CHARGING_BEAMS.get(playerUUID);
                     if (beam != null && beam.getMode() != mode) return;
                     BeamEntity.CHARGING_BEAMS.remove(playerUUID, beam);
-                    if (beam != null) {
+                    if (beam != null && !beam.isRemoved()) {
                         beam.discard();
                     }
                     BeamEntity.setKeyState(playerUUID, isLeftMode(mode), false);
                 }
 
                 case KEY_STATE -> {
-                    BeamEntity beam = getControllableBeam(playerUUID);
+                    BeamEntity beam = BeamEntity.CHARGING_BEAMS.get(playerUUID);
                     if (beam != null && beam.getMode() != mode) return;
                     BeamEntity.setKeyState(playerUUID, isLeftMode(mode), keyDown);
-                    if (!keyDown && beam != null) {
-                        // 在数据包处理阶段完成释放，避免等待实体 tick 时被下一次蓄力误删。
-                        beam.releaseCharge();
-                    }
                 }
             }
         });
         context.setPacketHandled(true);
-    }
-
-    private static BeamEntity getControllableBeam(UUID playerUUID) {
-        BeamEntity beam = BeamEntity.CHARGING_BEAMS.get(playerUUID);
-        if (beam == null) {
-            return null;
-        }
-
-        BeamEntity.Phase phase = beam.getPhase();
-        if (beam.isRemoved()
-                || (phase != BeamEntity.Phase.CHARGING && phase != BeamEntity.Phase.CHARGED_WAIT)) {
-            BeamEntity.CHARGING_BEAMS.remove(playerUUID, beam);
-            return null;
-        }
-        return beam;
     }
 
     private static boolean isLeftMode(BeamEntity.Mode mode) {

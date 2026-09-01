@@ -10,7 +10,7 @@ import net.minecraft.world.item.enchantment.EnchantmentCategory;
 public final class StaffEnergyEnchantment extends Enchantment {
 
     public StaffEnergyEnchantment(Rarity rarity, EnchantmentCategory category) {
-        super(rarity, category, EquipmentSlot.MAINHAND, EquipmentSlot.OFFHAND);
+        super(rarity, category, new EquipmentSlot[]{EquipmentSlot.MAINHAND, EquipmentSlot.OFFHAND});
     }
 
     @Override
