@@ -26,16 +26,13 @@ public class PlayerTickHandler {
             return;
         }
 
-        // 按住任一施法键满 8 tick 后才减速；松键会立即退出蓄力状态并恢复速度。
+        // 如果左右键任一正在蓄力，则减速
         boolean isCharging = InputHandler.isLeftCharging() || InputHandler.isRightCharging();
-        if (InputHandler.shouldApplySlowdown(player.level().getGameTime())) {
+        if (isCharging) {
             player.setSpeed(0.4f); // 减速60%
+            player.swingTime = 10;
         } else {
             player.setSpeed(0.1f);
-        }
-
-        if (isCharging) {
-            player.swingTime = 10;
         }
     }
 }
