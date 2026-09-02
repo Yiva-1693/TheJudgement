@@ -124,7 +124,7 @@ public final class BeamLateEffectRenderer {
                                           double sizeScale, double timeOffset) {
         float partialTick = event.getPartialTick();
         double intensity = getEffectIntensity(beam, partialTick);
-        double radius = Math.max(1.4, getVisualRadius(beam, partialTick) * 2.1)
+        double radius = Math.max(1.4, getVisualRadius(beam, partialTick) * 4)
                 * intensity * sizeScale;
         double time = beam.getTotalLifeTicks() + partialTick + timeOffset;
 

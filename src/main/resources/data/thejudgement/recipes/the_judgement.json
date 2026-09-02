@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "BAB",
+    "BAB",
+    "BCB"
+  ],
+  "key": {
+    "A": {
+      "item": "thejudgement:energy_core"
+    },
+    "B": {
+      "item": "minecraft:netherite_ingot"
+    },
+    "C": {
+      "item": "minecraft:diamond_sword"
+    }
+  },
+  "result": {
+    "item": "thejudgement:the_judgement"
+  }
+}
