@@ -1,7 +1,8 @@
 {
   "item.thejudgement.the_judgement": "The Judgement",
+  "item.thejudgement.energy_core": "Energy Core",
   "creativetab.thejudgement.the_judgement": "The Judgement",
   "enchantment.thejudgement.energy_capacity": "Energy Capacity",
   "enchantment.thejudgement.energy_regeneration": "Energy Recirculation",
-  "tooltip.thejudgement.energy": "Energy: %s/%s"
+  "tooltip.thejudgement.energy": "Energy: %s/%s",
 }

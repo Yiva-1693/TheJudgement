@@ -38,8 +38,14 @@ public class JudgementStaffItem extends Item {
             return InteractionResultHolder.fail(stack);
         }
 
-        // 阻止原版交互（如吃东西、放置方块等）
-        return InteractionResultHolder.pass(stack);
+        // 消耗本次使用结果，阻止原版方块/实体交互且不触发挥手动画。
+        return InteractionResultHolder.consume(stack);
+    }
+
+    @Override
+    public boolean shouldCauseReequipAnimation(ItemStack oldStack, ItemStack newStack, boolean slotChanged) {
+        // 能量使用耐久值同步；仅耐久变化时不应反复播放手部重新装备动画。
+        return slotChanged || oldStack.getItem() != newStack.getItem();
     }
 
     @Override

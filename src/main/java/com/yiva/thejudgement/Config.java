@@ -107,7 +107,7 @@ public class Config {
             builder.push("timing");
             maxChargeDuration = builder
                     .comment("最大蓄力总时长（秒），超过则自动取消")
-                    .defineInRange("maxChargeDuration", 4.0, 1.0, 30.0);
+                    .defineInRange("maxChargeDuration", 6.0, 1.0, 30.0);
             builder.pop();
 
         }

@@ -24,6 +24,7 @@ public final class ModCreativeTabs {
                     .icon(() -> new ItemStack(ModItems.JUDGEMENT_STAFF.get()))
                     .displayItems((parameters, output) -> {
                         output.accept(ModItems.JUDGEMENT_STAFF.get());
+                        output.accept(ModItems.ENERGY_CORE.get());
                         addEnchantedBooks(output, ModEnchantments.ENERGY_CAPACITY.get());
                         addEnchantedBooks(output, ModEnchantments.ENERGY_REGENERATION.get());
                     })
