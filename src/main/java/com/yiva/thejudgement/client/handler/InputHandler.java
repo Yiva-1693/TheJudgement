@@ -24,8 +24,9 @@ import net.minecraft.world.phys.HitResult;
 @Mod.EventBusSubscriber(modid = TheJudgement.MOD_ID, value = Dist.CLIENT)
 public class InputHandler {
 
-    private static long leftPressTime = 0;
-    private static long rightPressTime = 0;
+    private static final int SLOWDOWN_DELAY_TICKS = 8;
+    private static long leftPressTick = -1;
+    private static long rightPressTick = -1;
     private static double rightPressY = 0;
     private static boolean leftCharging = false;
     private static boolean rightCharging = false;
@@ -60,9 +61,9 @@ public class InputHandler {
                 }
                 if (!JudgementStaffItem.hasEnoughEnergy(mainHand)) return;
                 if (leftCharging) return;
+                leftPressTick = player.level().getGameTime();
 
                 if (player.isShiftKeyDown()) {
-                    leftPressTime = System.currentTimeMillis();
                     leftMode = BeamEntity.Mode.BOMB;
                     leftCharging = true;
 
@@ -108,7 +109,7 @@ public class InputHandler {
                 if (!JudgementStaffItem.hasEnoughEnergy(mainHand)) return;
                 if (rightCharging) return;
 
-                rightPressTime = System.currentTimeMillis();
+                rightPressTick = player.level().getGameTime();
                 rightPressY = player.position().y;
                 rightCharging = true;
 
@@ -122,7 +123,7 @@ public class InputHandler {
             } else if (action == GLFW.GLFW_RELEASE) {
                 if (rightCharging) {
                     rightCharging = false;
-                    rightPressTime = 0;
+                    rightPressTick = -1;
                     // 松开按键不停止音效
                     ModMessages.sendToServer(BeamControlC2SPacket.keyState(BeamEntity.Mode.SWEEP, false, player.getUUID()));
                 }
@@ -178,13 +179,13 @@ public class InputHandler {
 
     private static void resetLeftState() {
         leftCharging = false;
-        leftPressTime = 0;
+        leftPressTick = -1;
         leftMode = null;
     }
 
     private static void cancelRight(LocalPlayer player) {
         rightCharging = false;
-        rightPressTime = 0;
+        rightPressTick = -1;
         // 不停止音效
         ModMessages.sendToServer(BeamControlC2SPacket.cancelCharge(BeamEntity.Mode.SWEEP, player.getUUID()));
     }
@@ -192,4 +193,12 @@ public class InputHandler {
     // ---------- 状态查询 ----------
     public static boolean isLeftCharging() { return leftCharging; }
     public static boolean isRightCharging() { return rightCharging; }
+
+    public static boolean shouldApplySlowdown(long currentGameTick) {
+        boolean leftReady = leftCharging && leftPressTick >= 0
+                && currentGameTick - leftPressTick >= SLOWDOWN_DELAY_TICKS;
+        boolean rightReady = rightCharging && rightPressTick >= 0
+                && currentGameTick - rightPressTick >= SLOWDOWN_DELAY_TICKS;
+        return leftReady || rightReady;
+    }
 }

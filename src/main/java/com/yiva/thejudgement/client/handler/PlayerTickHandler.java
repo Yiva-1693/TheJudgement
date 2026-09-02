@@ -35,13 +35,15 @@ public class PlayerTickHandler {
 
         ItemStack mainHand = player.getMainHandItem();
         boolean holdingStaff = mainHand.getItem() instanceof JudgementStaffItem;
-        boolean isCharging = holdingStaff
+        boolean isUsingStaff = holdingStaff
                 && (InputHandler.isLeftCharging() || InputHandler.isRightCharging());
+        boolean shouldSlowDown = holdingStaff
+                && InputHandler.shouldApplySlowdown(player.level().getGameTime());
 
         AttributeInstance movementSpeed = player.getAttribute(Attributes.MOVEMENT_SPEED);
         if (movementSpeed == null) return;
 
-        if (isCharging) {
+        if (shouldSlowDown) {
             // MULTIPLY_TOTAL 的 -0.6 会保留当前移动速度的 40%，兼容其他速度效果。
             if (movementSpeed.getModifier(CHARGING_SLOWDOWN_ID) == null) {
                 movementSpeed.addTransientModifier(CHARGING_SLOWDOWN);
@@ -49,6 +51,10 @@ public class PlayerTickHandler {
             player.swingTime = 10;
         } else {
             movementSpeed.removeModifier(CHARGING_SLOWDOWN_ID);
+        }
+
+        if (isUsingStaff) {
+            player.swingTime = 10;
         }
     }
 }
