@@ -22,6 +22,9 @@ public final class BeamGeometry {
     public static final int MAX_SURFACE_EFFECTS = 16;
     private static final double SURFACE_OFFSET = 0.03;
     private static final double DAMAGE_FLOOR_MARGIN = 0.05;
+    private static final int AIR_MEDIUM = 0;
+    private static final int FLUID_MEDIUM = 1;
+    private static final int SOLID_MEDIUM = 2;
 
     private BeamGeometry() {
     }
@@ -70,7 +73,9 @@ public final class BeamGeometry {
         for (int y = startY + 1; y <= endY && surfaces.size() < MAX_SURFACE_EFFECTS; y++) {
             cursor.setY(y);
             int medium = getMedium(level, cursor);
-            if (medium != previousMedium) {
+            boolean isBlockUndersideExposedToAir = previousMedium == AIR_MEDIUM
+                    && medium == SOLID_MEDIUM;
+            if (medium != previousMedium && !isBlockUndersideExposedToAir) {
                 surfaces.add(new Vec3(core.x, y + SURFACE_OFFSET, core.z));
             }
             previousMedium = medium;
@@ -80,12 +85,12 @@ public final class BeamGeometry {
 
     private static int getMedium(Level level, BlockPos pos) {
         if (!level.hasChunkAt(pos)) {
-            return 0;
+            return AIR_MEDIUM;
         }
         BlockState state = level.getBlockState(pos);
         if (!state.getCollisionShape(level, pos).isEmpty()) {
-            return 2;
+            return SOLID_MEDIUM;
         }
-        return state.getFluidState().isEmpty() ? 0 : 1;
+        return state.getFluidState().isEmpty() ? AIR_MEDIUM : FLUID_MEDIUM;
     }
 }

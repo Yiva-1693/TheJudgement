@@ -44,6 +44,13 @@ public class InputHandler {
         int button = event.getButton();
         int action = event.getAction();
 
+        if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT && button != GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
+            return;
+        }
+
+        // 法杖自行处理左右键；不要再把按键交给原版攻击、挖掘或使用逻辑。
+        event.setCanceled(true);
+
         // ========== 左键：潜行蓄力轰炸 / 非潜行直接轰炸 ==========
         if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
             if (action == GLFW.GLFW_PRESS) {

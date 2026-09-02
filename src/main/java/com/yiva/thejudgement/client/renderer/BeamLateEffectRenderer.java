@@ -108,19 +108,15 @@ public final class BeamLateEffectRenderer {
         Matrix4f matrix = poseStack.last().pose();
 
         // 完整激光在天气之后一次绘制，避免实体渲染与补光渲染形成两根光柱。
-        RenderSystem.disableDepthTest();
-        try {
-            drawVerticalQuad(matrix, beamHeight, tangentX, tangentZ, radius * 1.18,
-                    0.34f, 0.08f, 1.0f, 0.24f);
-            drawTexturedVerticalBand(matrix, beamHeight, tangentX, tangentZ,
-                    radius * 0.72, radius, SURFACE_TEXTURE, 0.75f);
-            drawTexturedVerticalBand(matrix, beamHeight, tangentX, tangentZ,
-                    radius * 0.36, radius * 0.72, BEAM_TEXTURE, 0.95f);
-            drawTexturedVerticalBand(matrix, beamHeight, tangentX, tangentZ,
-                    0, radius * 0.36, WHITE_BEAM_TEXTURE, 1.0f);
-        } finally {
-            RenderSystem.enableDepthTest();
-        }
+        // 保持深度测试启用，使实体方块能够正确遮挡光柱。
+        drawVerticalQuad(matrix, beamHeight, tangentX, tangentZ, radius * 1.18,
+                0.34f, 0.08f, 1.0f, 0.24f);
+        drawTexturedVerticalBand(matrix, beamHeight, tangentX, tangentZ,
+                radius * 0.72, radius, SURFACE_TEXTURE, 0.75f);
+        drawTexturedVerticalBand(matrix, beamHeight, tangentX, tangentZ,
+                radius * 0.36, radius * 0.72, BEAM_TEXTURE, 0.95f);
+        drawTexturedVerticalBand(matrix, beamHeight, tangentX, tangentZ,
+                0, radius * 0.36, WHITE_BEAM_TEXTURE, 1.0f);
     }
 
     private static void renderImpactFlare(RenderLevelStageEvent event, BeamEntity beam,
