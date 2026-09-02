@@ -24,9 +24,7 @@ public class ModItems {
 
     public static final RegistryObject<Item> ENERGY_CORE =
             ITEMS.register("energy_core",
-                    () -> new Item(new Item.Properties()
-                            .stacksTo(1)
-                    ));
+                    () -> new Item(new Item.Properties()));
 
     // 外部调用注册方法
     public static void register(IEventBus modEventBus) {
