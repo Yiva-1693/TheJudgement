@@ -1,8 +1,17 @@
 {
   "item.thejudgement.the_judgement": "The Judgement",
   "item.thejudgement.energy_core": "Energy Core",
+  "item.thejudgement.amplifier_core": "Amplifier Core",
+  "item.thejudgement.energy_stabilizer": "Energy Stabilizer",
+  "item.thejudgement.phase_tuner": "Phase Tuner",
   "creativetab.thejudgement.the_judgement": "The Judgement",
   "enchantment.thejudgement.energy_capacity": "Energy Capacity",
   "enchantment.thejudgement.energy_regeneration": "Energy Recirculation",
-  "tooltip.thejudgement.energy": "Energy: %s/%s"
+  "tooltip.thejudgement.energy": "Energy: %s/%s",
+
+
+  "item.thejudgement.amplifier_core.desc": "A precision amplification unit forged from an Energy Core.",
+  "item.thejudgement.energy_stabilizer.desc": "A compact stabilizer that keeps volatile energy in check.",
+  "item.thejudgement.phase_tuner.desc": "A delicate tuner used to align phase frequencies."
+
 }
