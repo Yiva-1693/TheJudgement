@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "CBC",
+    "CAC",
+    "CBC"
+  ],
+  "key": {
+    "A": {
+      "item": "thejudgement:energy_core"
+    },
+    "B": {
+      "item": "minecraft:redstone_block"
+    },
+    "C": {
+      "item": "minecraft:glass"
+    }
+  },
+  "result": {
+    "item": "thejudgement:energy_stabilizer"
+  }
+}

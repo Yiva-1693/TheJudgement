@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "BCB",
+    "CAC",
+    "BCB"
+  ],
+  "key": {
+    "A": {
+      "item": "thejudgement:energy_core"
+    },
+    "B": {
+      "item": "minecraft:amethyst_shard"
+    },
+    "C": {
+      "item": "minecraft:end_crystal"
+    }
+  },
+  "result": {
+    "item": "thejudgement:phase_tuner"
+  }
+}
