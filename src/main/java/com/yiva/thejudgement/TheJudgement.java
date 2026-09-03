@@ -4,6 +4,7 @@ import com.yiva.thejudgement.entity.ModEntities;
 import com.yiva.thejudgement.enchantment.ModEnchantments;
 import com.yiva.thejudgement.item.ModCreativeTabs;
 import com.yiva.thejudgement.item.ModItems;
+import com.yiva.thejudgement.loot.ModLootModifiers;
 import com.yiva.thejudgement.network.ModMessages;
 import com.yiva.thejudgement.sound.ModSounds;
 import net.minecraftforge.common.MinecraftForge;
@@ -41,6 +42,8 @@ public class TheJudgement {
         ModCreativeTabs.register(modEventBus);
         // 法杖专属附魔
         ModEnchantments.register(modEventBus);
+        // 箱子战利品中的法杖专属附魔等级限制
+        ModLootModifiers.register(modEventBus);
         // 实体
         ModEntities.register(modEventBus);
         // 音效

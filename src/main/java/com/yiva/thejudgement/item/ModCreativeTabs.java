@@ -25,6 +25,9 @@ public final class ModCreativeTabs {
                     .displayItems((parameters, output) -> {
                         output.accept(ModItems.JUDGEMENT_STAFF.get());
                         output.accept(ModItems.ENERGY_CORE.get());
+                        output.accept(ModItems.AMPLIFIER_CORE.get());      // 新增
+                        output.accept(ModItems.ENERGY_STABILIZER.get());    // 新增
+                        output.accept(ModItems.PHASE_TUNER.get());          // 新增
                         addEnchantedBooks(output, ModEnchantments.ENERGY_CAPACITY.get());
                         addEnchantedBooks(output, ModEnchantments.ENERGY_REGENERATION.get());
                     })

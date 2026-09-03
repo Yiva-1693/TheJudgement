@@ -1,8 +1,15 @@
 {
   "item.thejudgement.the_judgement": "审判",
   "item.thejudgement.energy_core": "能量核心",
+  "item.thejudgement.amplifier_core": "核心增幅器",
+  "item.thejudgement.energy_stabilizer": "能量稳定器",
+  "item.thejudgement.phase_tuner": "相位调谐器",
   "creativetab.thejudgement.the_judgement": "审判",
   "enchantment.thejudgement.energy_capacity": "能量充盈",
   "enchantment.thejudgement.energy_regeneration": "能量回流",
-  "tooltip.thejudgement.energy": "能量：%s/%s"
+  "tooltip.thejudgement.energy": "能量：%s/%s",
+
+  "item.thejudgement.amplifier_core.desc": "由能量核心锻造而成的精密增幅单元，用于扩展最大能量",
+  "item.thejudgement.energy_stabilizer.desc": "用于约束不稳定能量的紧凑稳定器，可增加能量恢复速度",
+  "item.thejudgement.phase_tuner.desc": "用于调谐相位频率的精密装置，可增加伤害"
 }

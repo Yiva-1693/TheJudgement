@@ -24,9 +24,20 @@ public class ModItems {
 
     public static final RegistryObject<Item> ENERGY_CORE =
             ITEMS.register("energy_core",
-                    () -> new Item(new Item.Properties()
-                            .stacksTo(1)
-                    ));
+                    () -> new Item(new Item.Properties()));
+
+    // 强化材料
+    public static final RegistryObject<Item> AMPLIFIER_CORE =
+            ITEMS.register("amplifier_core",
+                    () -> new Item(new Item.Properties().stacksTo(64)));
+
+    public static final RegistryObject<Item> ENERGY_STABILIZER =
+            ITEMS.register("energy_stabilizer",
+                    () -> new Item(new Item.Properties().stacksTo(64)));
+
+    public static final RegistryObject<Item> PHASE_TUNER =
+            ITEMS.register("phase_tuner",
+                    () -> new Item(new Item.Properties().stacksTo(64)));
 
     // 外部调用注册方法
     public static void register(IEventBus modEventBus) {
