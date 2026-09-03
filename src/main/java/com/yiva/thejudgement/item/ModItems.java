@@ -29,15 +29,15 @@ public class ModItems {
     // 强化材料
     public static final RegistryObject<Item> AMPLIFIER_CORE =
             ITEMS.register("amplifier_core",
-                    () -> new Item(new Item.Properties().stacksTo(64)));
+                    () -> new DescriptionItem(new Item.Properties().stacksTo(64)));
 
     public static final RegistryObject<Item> ENERGY_STABILIZER =
             ITEMS.register("energy_stabilizer",
-                    () -> new Item(new Item.Properties().stacksTo(64)));
+                    () -> new DescriptionItem(new Item.Properties().stacksTo(64)));
 
     public static final RegistryObject<Item> PHASE_TUNER =
             ITEMS.register("phase_tuner",
-                    () -> new Item(new Item.Properties().stacksTo(64)));
+                    () -> new DescriptionItem(new Item.Properties().stacksTo(64)));
 
     // 外部调用注册方法
     public static void register(IEventBus modEventBus) {

@@ -1,0 +1,13 @@
+{
+  "type": "thejudgement:judgement_upgrade",
+  "template": {
+    "item": "minecraft:netherite_upgrade_smithing_template"
+  },
+  "base": {
+    "item": "thejudgement:the_judgement"
+  },
+  "addition": {
+    "item": "thejudgement:amplifier_core"
+  },
+  "upgrade": "amplifier"
+}
