@@ -154,6 +154,7 @@ public class BeamControlC2SPacket {
                     beam.setPhase(BeamEntity.Phase.CHARGING);
                     beam.setPhaseTimer(0);
                     beam.setSourceStaffId(JudgementStaffItem.getOrCreateEnergyId(mainHand));
+                    beam.setDamagePerTick(JudgementStaffItem.getDamagePerTick(mainHand));
 
                     beam.setCenterPos(startCenter);
 

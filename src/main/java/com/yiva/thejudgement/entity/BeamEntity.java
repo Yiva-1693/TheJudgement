@@ -75,6 +75,7 @@ public class BeamEntity extends Entity {
     private int phaseTimer;
     private int totalLifeTicks;
     private double currentRadius;
+    private int damagePerTick;
     private boolean hasRefundedEnergy = false;
     @Nullable
     private UUID sourceStaffId;
@@ -88,6 +89,7 @@ public class BeamEntity extends Entity {
         this.phaseTimer = 0;
         this.totalLifeTicks = 0;
         this.currentRadius = Config.getBeamRadius();
+        this.damagePerTick = JudgementStaffItem.BASE_DAMAGE_PER_TICK;
         this.moveDirection = Vec3.ZERO;
         this.noPhysics = true;
         this.centerPos = Vec3.ZERO;
@@ -142,6 +144,17 @@ public class BeamEntity extends Entity {
 
     public void setSourceStaffId(UUID sourceStaffId) {
         this.sourceStaffId = sourceStaffId;
+    }
+
+    public void setDamagePerTick(int damagePerTick) {
+        this.damagePerTick = Math.max(
+                JudgementStaffItem.BASE_DAMAGE_PER_TICK,
+                Math.min(
+                        JudgementStaffItem.BASE_DAMAGE_PER_TICK
+                                + JudgementStaffItem.DAMAGE_PER_LEVEL * JudgementStaffItem.MAX_UPGRADE_LEVEL,
+                        damagePerTick
+                )
+        );
     }
 
     public void setPhase(Phase phase) {
@@ -407,10 +420,10 @@ public class BeamEntity extends Entity {
                     && entity instanceof LivingEntity living) {
                 float damage;
                 if (phase == Phase.FIRING) {
-                    damage = Config.getBaseDamage();
+                    damage = damagePerTick;
                 } else {
                     double ratio = currentRadius / Config.getBeamRadius();
-                    damage = (float) (Config.getBaseDamage() * ratio);
+                    damage = (float) (damagePerTick * ratio);
                     if (damage < 0.5) damage = 0;
                 }
 
@@ -525,10 +538,12 @@ public class BeamEntity extends Entity {
 
     @Override
     protected void readAdditionalSaveData(CompoundTag tag) {
+        setDamagePerTick(tag.getInt("DamagePerTick"));
     }
 
     @Override
     protected void addAdditionalSaveData(CompoundTag tag) {
+        tag.putInt("DamagePerTick", damagePerTick);
     }
 
     @Override

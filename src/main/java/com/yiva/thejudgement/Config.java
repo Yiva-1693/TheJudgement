@@ -28,7 +28,6 @@ public class Config {
 
         // ---------- 激光本体基础属性 ----------
         public final ForgeConfigSpec.DoubleValue beamRadius;          // 光柱半径（格）
-        public final ForgeConfigSpec.IntValue baseDamagePerTick;      // 第二阶段每tick伤害（生命值）
 
         // ---------- 三阶段时间配置（单位：秒） ----------
         public final ForgeConfigSpec.DoubleValue chargeTime;          // 第一阶段前摇时长
@@ -53,9 +52,6 @@ public class Config {
             beamRadius = builder
                     .comment("光柱半径（格）")
                     .defineInRange("beamRadius", 3.0, 0.5, 10.0);
-            baseDamagePerTick = builder
-                    .comment("第二阶段每tick基础伤害（生命值）")
-                    .defineInRange("baseDamagePerTick", 30, 1, 100);
             builder.pop();
 
             builder.push("timing");
@@ -116,7 +112,6 @@ public class Config {
     // 为了方便调用，封装静态获取方法（缩减代码行数）
     public static double getMaxChargeDuration() { return COMMON.maxChargeDuration.get(); }
     public static double getBeamRadius() { return COMMON.beamRadius.get(); }
-    public static int getBaseDamage() { return COMMON.baseDamagePerTick.get(); }
     public static double getChargeTime() { return COMMON.chargeTime.get(); }
     public static double getFiringTime() { return COMMON.firingTime.get(); }
     public static double getDissipateTime() { return COMMON.dissipateTime.get(); }
@@ -153,11 +148,10 @@ public class Config {
 
     private static void logEffectiveValues(String action, String fileName) {
         TheJudgement.LOGGER.info(
-                "Config {} from {}: baseDamagePerTick={}, sweepTrackSpeed={} blocks/s ({} blocks/tick), " +
+                "Config {} from {}: sweepTrackSpeed={} blocks/s ({} blocks/tick), " +
                         "sweepFireSpeed={} blocks/s ({} blocks/tick)",
                 action,
                 fileName,
-                getBaseDamage(),
                 getSweepTrackSpeed(),
                 blocksPerSecondToBlocksPerTick(getSweepTrackSpeed()),
                 getSweepFireSpeed(),

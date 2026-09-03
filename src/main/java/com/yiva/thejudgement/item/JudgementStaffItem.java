@@ -1,6 +1,5 @@
 package com.yiva.thejudgement.item;
 
-import com.yiva.thejudgement.enchantment.ModEnchantments;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
@@ -10,8 +9,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.enchantment.Enchantment;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.level.Level;
 
 import javax.annotation.Nullable;
@@ -24,6 +21,9 @@ public class JudgementStaffItem extends Item {
     public static final int ENERGY_COST = 100;
     public static final int BASE_REGEN_PER_SECOND = 10;
     public static final int REGEN_PER_LEVEL = 2;
+    public static final int BASE_DAMAGE_PER_TICK = 5;
+    public static final int DAMAGE_PER_LEVEL = 5;
+    public static final int MAX_UPGRADE_LEVEL = 5;
     private static final String ENERGY_ID_TAG = "JudgementEnergyId";
 
     public JudgementStaffItem(Properties properties) {
@@ -50,9 +50,7 @@ public class JudgementStaffItem extends Item {
 
     @Override
     public int getMaxDamage(ItemStack stack) {
-        int capacityLevel = EnchantmentHelper.getItemEnchantmentLevel(
-                ModEnchantments.ENERGY_CAPACITY.get(), stack);
-        return BASE_MAX_ENERGY + capacityLevel * 100;
+        return BASE_MAX_ENERGY + getUpgradeLevel(stack, UpgradeType.AMPLIFIER) * 100;
     }
 
     @Override
@@ -62,20 +60,7 @@ public class JudgementStaffItem extends Item {
             return;
         }
 
-        int regenerationLevel = EnchantmentHelper.getItemEnchantmentLevel(
-                ModEnchantments.ENERGY_REGENERATION.get(), stack);
-        restoreEnergy(stack, BASE_REGEN_PER_SECOND + regenerationLevel * REGEN_PER_LEVEL);
-    }
-
-    @Override
-    public boolean canApplyAtEnchantingTable(ItemStack stack, Enchantment enchantment) {
-        return enchantment == ModEnchantments.ENERGY_CAPACITY.get()
-                || enchantment == ModEnchantments.ENERGY_REGENERATION.get();
-    }
-
-    @Override
-    public int getEnchantmentValue(ItemStack stack) {
-        return 15;
+        restoreEnergy(stack, getRegenerationPerSecond(stack));
     }
 
     @Override
@@ -90,6 +75,38 @@ public class JudgementStaffItem extends Item {
                 "tooltip.thejudgement.energy",
                 getEnergy(stack), stack.getMaxDamage()
         ).withStyle(ChatFormatting.LIGHT_PURPLE));
+        addUpgradeTooltip(tooltip, stack, UpgradeType.AMPLIFIER,
+                "tooltip.thejudgement.upgrade.amplifier");
+        addUpgradeTooltip(tooltip, stack, UpgradeType.STABILIZER,
+                "tooltip.thejudgement.upgrade.stabilizer");
+        addUpgradeTooltip(tooltip, stack, UpgradeType.PHASE_TUNER,
+                "tooltip.thejudgement.upgrade.phase_tuner");
+    }
+
+    private static void addUpgradeTooltip(
+            List<Component> tooltip,
+            ItemStack stack,
+            UpgradeType type,
+            String translationKey
+    ) {
+        int upgradeLevel = getUpgradeLevel(stack, type);
+        if (upgradeLevel > 0) {
+            tooltip.add(Component.translatable(
+                    translationKey,
+                    toRomanNumeral(upgradeLevel)
+            ).withStyle(ChatFormatting.GRAY));
+        }
+    }
+
+    private static String toRomanNumeral(int level) {
+        return switch (level) {
+            case 1 -> "I";
+            case 2 -> "II";
+            case 3 -> "III";
+            case 4 -> "IV";
+            case 5 -> "V";
+            default -> Integer.toString(level);
+        };
     }
 
     public static int getEnergy(ItemStack stack) {
@@ -98,6 +115,30 @@ public class JudgementStaffItem extends Item {
 
     public static boolean hasEnoughEnergy(ItemStack stack) {
         return stack.getItem() instanceof JudgementStaffItem && getEnergy(stack) >= ENERGY_COST;
+    }
+
+    public static int getRegenerationPerSecond(ItemStack stack) {
+        return BASE_REGEN_PER_SECOND + getUpgradeLevel(stack, UpgradeType.STABILIZER) * REGEN_PER_LEVEL;
+    }
+
+    public static int getDamagePerTick(ItemStack stack) {
+        return BASE_DAMAGE_PER_TICK + getUpgradeLevel(stack, UpgradeType.PHASE_TUNER) * DAMAGE_PER_LEVEL;
+    }
+
+    public static int getUpgradeLevel(ItemStack stack, UpgradeType type) {
+        if (!(stack.getItem() instanceof JudgementStaffItem) || !stack.hasTag()) {
+            return 0;
+        }
+        return Math.max(0, Math.min(MAX_UPGRADE_LEVEL, stack.getTag().getInt(type.tagName)));
+    }
+
+    public static boolean applyUpgrade(ItemStack stack, UpgradeType type) {
+        int currentLevel = getUpgradeLevel(stack, type);
+        if (!(stack.getItem() instanceof JudgementStaffItem) || currentLevel >= MAX_UPGRADE_LEVEL) {
+            return false;
+        }
+        stack.getOrCreateTag().putInt(type.tagName, currentLevel + 1);
+        return true;
     }
 
     public static boolean consumeEnergy(ItemStack stack, int amount) {
@@ -128,5 +169,17 @@ public class JudgementStaffItem extends Item {
                 && stack.hasTag()
                 && stack.getTag().hasUUID(ENERGY_ID_TAG)
                 && stack.getTag().getUUID(ENERGY_ID_TAG).equals(energyId);
+    }
+
+    public enum UpgradeType {
+        AMPLIFIER("JudgementAmplifierLevel"),
+        STABILIZER("JudgementStabilizerLevel"),
+        PHASE_TUNER("JudgementPhaseTunerLevel");
+
+        private final String tagName;
+
+        UpgradeType(String tagName) {
+            this.tagName = tagName;
+        }
     }
 }

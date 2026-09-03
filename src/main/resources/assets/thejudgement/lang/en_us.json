@@ -5,9 +5,10 @@
   "item.thejudgement.energy_stabilizer": "Energy Stabilizer",
   "item.thejudgement.phase_tuner": "Phase Tuner",
   "creativetab.thejudgement.the_judgement": "The Judgement",
-  "enchantment.thejudgement.energy_capacity": "Energy Capacity",
-  "enchantment.thejudgement.energy_regeneration": "Energy Recirculation",
   "tooltip.thejudgement.energy": "Energy: %s/%s",
+  "tooltip.thejudgement.upgrade.amplifier": "Core Amplification: %s",
+  "tooltip.thejudgement.upgrade.stabilizer": "Energy Stabilization: %s",
+  "tooltip.thejudgement.upgrade.phase_tuner": "Phase Tuning: %s",
 
 
   "item.thejudgement.amplifier_core.desc": "A precision amplification unit forged from an Energy Core.",
