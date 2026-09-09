@@ -20,15 +20,11 @@ import net.minecraftforge.fml.common.Mod;
 import java.util.IdentityHashMap;
 import java.util.Map;
 
-/**
- * 将蓄力状态转换为客户端人物模型姿势。
- * 通过 Forge 的 ArmPose 在模型 setupAnim 阶段修改手臂，避免被原版动画覆盖。
- */
 @Mod.EventBusSubscriber(modid = TheJudgement.MOD_ID, value = Dist.CLIENT)
 public final class ChargingPoseRenderer {
 
-    private static final Map<PlayerModel<?>, PoseSnapshot> ACTIVE_POSES = new IdentityHashMap<>();
-    private static final Map<PlayerModel<?>, PoseParameters> ACTIVE_PARAMETERS = new IdentityHashMap<>();
+    private static final Map<PlayerModel, PoseSnapshot> ACTIVE_POSES = new IdentityHashMap<>();
+    private static final Map<PlayerModel, PoseParameters> ACTIVE_PARAMETERS = new IdentityHashMap<>();
 
     private ChargingPoseRenderer() {
     }
@@ -42,9 +38,10 @@ public final class ChargingPoseRenderer {
             return;
         }
 
-        if (!(event.getRenderer().getModel() instanceof PlayerModel<?> model)) {
+        if (!(event.getRenderer().getModel() instanceof PlayerModel)) {
             return;
         }
+        PlayerModel model = (PlayerModel) event.getRenderer().getModel();
         restorePendingPose(model);
         if (!(player.getMainHandItem().getItem() instanceof JudgementStaffItem)) {
             return;
@@ -73,12 +70,13 @@ public final class ChargingPoseRenderer {
 
     @SubscribeEvent
     public static void onRenderPlayerPost(RenderPlayerEvent.Post event) {
-        if (event.getRenderer().getModel() instanceof PlayerModel<?> model) {
+        if (event.getRenderer().getModel() instanceof PlayerModel) {
+            PlayerModel model = (PlayerModel) event.getRenderer().getModel();
             restorePendingPose(model);
         }
     }
 
-    private static void restorePendingPose(PlayerModel<?> model) {
+    private static void restorePendingPose(PlayerModel model) {
         ACTIVE_PARAMETERS.remove(model);
         PoseSnapshot snapshot = ACTIVE_POSES.remove(model);
         if (snapshot != null) {
@@ -92,9 +90,10 @@ public final class ChargingPoseRenderer {
             HumanoidArm arm
     ) {
         if (!(entity instanceof Player player)
-                || !(model instanceof PlayerModel<?> playerModel)) {
+                || !(model instanceof PlayerModel)) {
             return;
         }
+        PlayerModel playerModel = (PlayerModel) model;
 
         PoseParameters parameters = ACTIVE_PARAMETERS.get(playerModel);
         if (parameters == null) {
@@ -110,7 +109,6 @@ public final class ChargingPoseRenderer {
 
         blendRotation(armPart, armXRot, armYRot, armZRot, parameters.blend);
 
-        // 身体只在右臂回调中调整一次，防止左右臂重复叠加。
         if (arm == HumanoidArm.RIGHT) {
             blendRotation(
                     playerModel.body,
@@ -192,7 +190,7 @@ public final class ChargingPoseRenderer {
             this.leftArmPose = leftArmPose;
         }
 
-        private static PoseSnapshot capture(PlayerModel<?> model) {
+        private static PoseSnapshot capture(PlayerModel model) {
             return new PoseSnapshot(
                     model.body.storePose(),
                     model.rightArm.storePose(),
@@ -205,7 +203,7 @@ public final class ChargingPoseRenderer {
             );
         }
 
-        private void restore(PlayerModel<?> model) {
+        private void restore(PlayerModel model) {
             model.body.loadPose(body);
             model.rightArm.loadPose(rightArm);
             model.leftArm.loadPose(leftArm);
