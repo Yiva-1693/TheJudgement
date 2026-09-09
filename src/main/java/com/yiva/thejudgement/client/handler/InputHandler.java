@@ -6,6 +6,7 @@ import com.yiva.thejudgement.entity.BeamEntity;
 import com.yiva.thejudgement.item.JudgementStaffItem;
 import com.yiva.thejudgement.network.ModMessages;
 import com.yiva.thejudgement.network.packet.BeamControlC2SPacket;
+import com.yiva.thejudgement.network.packet.ChargingPoseC2SPacket;
 import com.yiva.thejudgement.util.BeamMathHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -13,6 +14,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.InputEvent;
+import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -31,6 +33,7 @@ public class InputHandler {
     private static boolean leftCharging = false;
     private static boolean rightCharging = false;
     private static BeamEntity.Mode leftMode = null;
+    private static boolean poseStateSent = false;
 
     // ---------- 鼠标事件 ----------
     @SubscribeEvent
@@ -148,8 +151,12 @@ public class InputHandler {
         if ((!holdingStaff || guiOpen) && (leftCharging || rightCharging)) {
             if (leftCharging) cancelLeft(player);
             if (rightCharging) cancelRight(player);
-            return;
         }
+
+        boolean poseActive = holdingStaff && !guiOpen && (leftCharging || rightCharging);
+        syncChargingPose(player, poseActive);
+
+        if (!holdingStaff || guiOpen) return;
 
         if (leftCharging && leftMode == BeamEntity.Mode.BOMB) {
             // 只通知服务端更新；目标检测和坐标计算由服务端完成。
@@ -168,6 +175,16 @@ public class InputHandler {
     }
 
     // ---------- 取消方法 ----------
+    private static void syncChargingPose(LocalPlayer player, boolean active) {
+        ChargingPoseClientState.setFromInput(player.getUUID(), active);
+        if (poseStateSent == active) {
+            return;
+        }
+
+        ModMessages.sendPoseToServer(new ChargingPoseC2SPacket(active));
+        poseStateSent = active;
+    }
+
     private static void cancelLeft(LocalPlayer player) {
         BeamEntity.Mode cancelledMode = leftMode;
         resetLeftState();
@@ -200,5 +217,14 @@ public class InputHandler {
         boolean rightReady = rightCharging && rightPressTick >= 0
                 && currentGameTick - rightPressTick >= SLOWDOWN_DELAY_TICKS;
         return leftReady || rightReady;
+    }
+
+    @SubscribeEvent
+    public static void onClientLogout(ClientPlayerNetworkEvent.LoggingOut event) {
+        resetLeftState();
+        rightCharging = false;
+        rightPressTick = -1;
+        rightPressY = 0;
+        poseStateSent = false;
     }
 }

@@ -35,8 +35,6 @@ public class PlayerTickHandler {
 
         ItemStack mainHand = player.getMainHandItem();
         boolean holdingStaff = mainHand.getItem() instanceof JudgementStaffItem;
-        boolean isUsingStaff = holdingStaff
-                && (InputHandler.isLeftCharging() || InputHandler.isRightCharging());
         boolean shouldSlowDown = holdingStaff
                 && InputHandler.shouldApplySlowdown(player.level().getGameTime());
 
@@ -48,13 +46,8 @@ public class PlayerTickHandler {
             if (movementSpeed.getModifier(CHARGING_SLOWDOWN_ID) == null) {
                 movementSpeed.addTransientModifier(CHARGING_SLOWDOWN);
             }
-            player.swingTime = 10;
         } else {
             movementSpeed.removeModifier(CHARGING_SLOWDOWN_ID);
-        }
-
-        if (isUsingStaff) {
-            player.swingTime = 10;
         }
     }
 }
