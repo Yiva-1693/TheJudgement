@@ -32,6 +32,8 @@ public class InputHandler {
     private static boolean leftCharging = false;
     private static boolean rightCharging = false;
     private static BeamEntity.Mode leftMode = null;
+    private static int animationTicks = 0;
+    private static final int ANIMATION_DURATION = 95; // 与激光总时长一致
 
     // ---------- 鼠标事件 ----------
     @SubscribeEvent
@@ -67,6 +69,7 @@ public class InputHandler {
                 if (player.isShiftKeyDown()) {
                     leftMode = BeamEntity.Mode.BOMB;
                     leftCharging = true;
+                    animationTicks = ANIMATION_DURATION;
                     // 初始 Core 在玩家脚下（取整）
                     BlockPos playerPos = player.blockPosition();
                     Vec3 core = new Vec3(playerPos.getX() + 0.5, playerPos.getY(), playerPos.getZ() + 0.5);
@@ -83,6 +86,7 @@ public class InputHandler {
 
                         leftMode = BeamEntity.Mode.DIRECT_BOMB;
                         leftCharging = true;
+                        animationTicks = ANIMATION_DURATION;
                         ModMessages.sendToServer(BeamControlC2SPacket.startCharge(leftMode, core, null, player.getUUID()));
                     } else {
                         // 未命中方块则取消
@@ -91,6 +95,7 @@ public class InputHandler {
                 }
             } else if (action == GLFW.GLFW_RELEASE) {
                 if (leftCharging) {
+                    animationTicks = 0;
                     BeamEntity.Mode releasedMode = leftMode;
                     resetLeftState();
                     ModMessages.sendToServer(BeamControlC2SPacket.keyState(releasedMode, false, player.getUUID()));
@@ -112,6 +117,7 @@ public class InputHandler {
                 rightPressTick = player.level().getGameTime();
                 rightPressY = player.position().y;
                 rightCharging = true;
+                animationTicks = ANIMATION_DURATION;
                 Vec3 core = new Vec3(player.position().x, rightPressY, player.position().z);
                 Vec3 horizontalDir = BeamMathHelper.getHorizontalDirection(player.getLookAngle());
                 Vec3 target = core.add(horizontalDir.scale(Config.getSweepCircleRadius()));
@@ -121,6 +127,7 @@ public class InputHandler {
                 ModMessages.sendToServer(BeamControlC2SPacket.keyState(BeamEntity.Mode.SWEEP, true, player.getUUID()));
             } else if (action == GLFW.GLFW_RELEASE) {
                 if (rightCharging) {
+                    animationTicks = 0;
                     rightCharging = false;
                     rightPressTick = -1;
                     // 松开按键不停止音效
@@ -156,11 +163,17 @@ public class InputHandler {
                     BeamEntity.Mode.BOMB, null, null, player.getUUID()));
         }
 
-
-        if ((leftCharging || rightCharging) && !player.isUsingItem())
-            player.startUsingItem(InteractionHand.MAIN_HAND);
-        else if (!(leftCharging || rightCharging) && player.isUsingItem())
-            player.stopUsingItem();
+        // 动画
+        if (animationTicks > 0) {
+            animationTicks--;
+            if (!player.isUsingItem()) {
+                player.startUsingItem(InteractionHand.MAIN_HAND);
+            }
+        } else {
+            if (player.isUsingItem()) {
+                player.stopUsingItem();
+            }
+        }
 
         // 右键扫射模式更新
         if (rightCharging) {
@@ -201,9 +214,11 @@ public class InputHandler {
 
     public static boolean shouldApplySlowdown(long currentGameTick) {
         boolean leftReady = leftCharging && leftPressTick >= 0
-                && currentGameTick - leftPressTick >= SLOWDOWN_DELAY_TICKS;
+                && currentGameTick - leftPressTick >= SLOWDOWN_DELAY_TICKS
+                && currentGameTick - leftPressTick <= 95;
         boolean rightReady = rightCharging && rightPressTick >= 0
-                && currentGameTick - rightPressTick >= SLOWDOWN_DELAY_TICKS;
+                && currentGameTick - rightPressTick >= SLOWDOWN_DELAY_TICKS
+                && currentGameTick - leftPressTick <= 95;
         return leftReady || rightReady;
     }
 }
