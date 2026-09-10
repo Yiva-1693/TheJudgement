@@ -9,6 +9,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.UseAnim;
 import net.minecraft.world.level.Level;
 
 import javax.annotation.Nullable;
@@ -28,6 +29,16 @@ public class JudgementStaffItem extends Item {
 
     public JudgementStaffItem(Properties properties) {
         super(properties);
+    }
+
+    @Override
+    public UseAnim getUseAnimation(ItemStack stack) {
+        return UseAnim.BOW; // 使用拉弓姿势；也可换成 SPEAR、CROSSBOW 等
+    }
+
+    @Override
+    public int getUseDuration(ItemStack stack) {
+        return 200; // 足够长，实际松开时会手动停止
     }
 
     @Override

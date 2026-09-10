@@ -9,6 +9,7 @@ import com.yiva.thejudgement.network.packet.BeamControlC2SPacket;
 import com.yiva.thejudgement.util.BeamMathHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
@@ -66,7 +67,6 @@ public class InputHandler {
                 if (player.isShiftKeyDown()) {
                     leftMode = BeamEntity.Mode.BOMB;
                     leftCharging = true;
-
                     // 初始 Core 在玩家脚下（取整）
                     BlockPos playerPos = player.blockPosition();
                     Vec3 core = new Vec3(playerPos.getX() + 0.5, playerPos.getY(), playerPos.getZ() + 0.5);
@@ -112,7 +112,6 @@ public class InputHandler {
                 rightPressTick = player.level().getGameTime();
                 rightPressY = player.position().y;
                 rightCharging = true;
-
                 Vec3 core = new Vec3(player.position().x, rightPressY, player.position().z);
                 Vec3 horizontalDir = BeamMathHelper.getHorizontalDirection(player.getLookAngle());
                 Vec3 target = core.add(horizontalDir.scale(Config.getSweepCircleRadius()));
@@ -156,6 +155,12 @@ public class InputHandler {
             ModMessages.sendToServer(BeamControlC2SPacket.updateCharge(
                     BeamEntity.Mode.BOMB, null, null, player.getUUID()));
         }
+
+
+        if ((leftCharging || rightCharging) && !player.isUsingItem())
+            player.startUsingItem(InteractionHand.MAIN_HAND);
+        else if (!(leftCharging || rightCharging) && player.isUsingItem())
+            player.stopUsingItem();
 
         // 右键扫射模式更新
         if (rightCharging) {
