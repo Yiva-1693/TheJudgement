@@ -2,5 +2,47 @@
   "parent": "item/handheld",
   "textures": {
     "layer0": "thejudgement:item/the_judgement"
+  },
+  "display": {
+    "gui": {
+      "rotation": [0, 0, 0],
+      "translation": [0, 0, 0],
+      "scale": [1, 1, 0.25]
+    },
+    "ground": {
+      "rotation": [0, 0, -135],
+      "translation": [0, 8, 0],
+      "scale": [4, 4, 1]
+    },
+    "fixed": {
+      "rotation": [0, 180, 0],
+      "translation": [0, 0, 0],
+      "scale": [1, 1, 0.25]
+    },
+    "head": {
+      "rotation": [0, 180, 0],
+      "translation": [0, 13, 7],
+      "scale": [1, 1, 0.25]
+    },
+    "thirdperson_righthand": {
+      "rotation": [0, -90, 30],
+      "translation": [0, 23, 10],
+      "scale": [4, 4, 1]
+    },
+    "thirdperson_lefthand": {
+      "rotation": [0, 90, -30],
+      "translation": [0, 23, 10],
+      "scale": [4, 4, 1]
+    },
+    "firstperson_righthand": {
+      "rotation": [0, -90, 25],
+      "translation": [1.13, 3.2, 1.13],
+      "scale": [1.5, 1.5, 1]
+    },
+    "firstperson_lefthand": {
+      "rotation": [0, 90, -25],
+      "translation": [1.13, 3.2, 1.13],
+      "scale": [1.5, 1.5, 1]
+    }
   }
 }
