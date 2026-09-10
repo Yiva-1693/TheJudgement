@@ -22,9 +22,9 @@ public class ModSounds {
             registerSound("beam_shot");
 
     private static RegistryObject<SoundEvent> registerSound(String name) {
-        // ✅ 新写法：使用 ResourceLocation.of 或直接 new ResourceLocation
+        // 使用 1.20.1 原有构造方法，兼容没有 bySeparator 的旧版 Forge。
         return SOUNDS.register(name, () -> SoundEvent.createVariableRangeEvent(
-                ResourceLocation.bySeparator(TheJudgement.MOD_ID + ":" + name, ':')
+                new ResourceLocation(TheJudgement.MOD_ID, name)
         ));
     }
 

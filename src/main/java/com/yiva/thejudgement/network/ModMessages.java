@@ -11,7 +11,7 @@ public class ModMessages {
     private static final String PROTOCOL_VERSION = "1.0";
     public static final SimpleChannel CHANNEL =
             NetworkRegistry.newSimpleChannel(
-                    ResourceLocation.bySeparator("thejudgement:main", ':'),
+                    new ResourceLocation(TheJudgement.MOD_ID, "main"),
                     () -> PROTOCOL_VERSION,
                     PROTOCOL_VERSION::equals,
                     PROTOCOL_VERSION::equals

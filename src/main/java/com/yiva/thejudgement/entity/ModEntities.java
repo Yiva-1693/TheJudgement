@@ -23,7 +23,7 @@ public class ModEntities {
                             .setTrackingRange(320)           // 覆盖最大256格选取距离并预留视觉范围
                             .setUpdateInterval(1)            // 每 tick 同步一次位置
                             .setShouldReceiveVelocityUpdates(false) // 不需要接收速度更新
-                            .build(ResourceLocation.bySeparator("thejudgement:beam", ':').toString())            );
+                            .build(new ResourceLocation(TheJudgement.MOD_ID, "beam").toString())            );
 
     // 外部调用注册方法
     public static void register(IEventBus modEventBus) {
