@@ -163,15 +163,19 @@ public class InputHandler {
                     BeamEntity.Mode.BOMB, null, null, player.getUUID()));
         }
 
-        // 动画
-        if (animationTicks > 0) {
-            animationTicks--;
-            if (!player.isUsingItem()) {
-                player.startUsingItem(InteractionHand.MAIN_HAND);
-            }
-        } else {
-            if (player.isUsingItem()) {
-                player.stopUsingItem();
+        // 动画：仅当手持法杖时才控制，避免影响吃东西等其他使用动作
+        if (holdingStaff) {
+            if (animationTicks > 0) {
+                animationTicks--;
+                if (!player.isUsingItem()) {
+                    player.startUsingItem(InteractionHand.MAIN_HAND);
+                }
+            } else {
+                // 只停止法杖自身的使用动作，避免打断吃东西/拉弓
+                if (player.isUsingItem()
+                        && player.getUseItem().getItem() instanceof JudgementStaffItem) {
+                    player.stopUsingItem();
+                }
             }
         }
 
